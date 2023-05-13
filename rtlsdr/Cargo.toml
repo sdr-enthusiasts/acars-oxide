@@ -1,0 +1,20 @@
+[package]
+name = "rtlsdr"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+libc = "0.2.144"
+rtlsdr_mt = "2.0.0"
+rtlsdr_sys = "1.1.2"
+#rtlsdr-rs = { git = "https://github.com/ccostes/rtl-sdr-rs.git" }
+#rtlsdr-rs = { path = "../../rtl-sdr-rs" }
+ctrlc = "3.2.3"

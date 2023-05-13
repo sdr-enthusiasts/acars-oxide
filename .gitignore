@@ -174,3 +174,9 @@ test_data/*.patched
 /target
 .idea
 Cargo.lock
+
+# Added by cargo
+#
+# already existing elements were commented out
+
+#/target
