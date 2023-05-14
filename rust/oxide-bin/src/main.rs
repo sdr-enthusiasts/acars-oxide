@@ -15,13 +15,25 @@ async fn main() {
         args
     );
 
-    let mut sdr = RtlSdr::new(
-        args.sdr1serial.unwrap(),
-        args.sdr1ppm.unwrap(),
-        args.sdr1gain.unwrap(),
-        args.sdr1biastee.unwrap(),
-        args.sdr1mult.unwrap(),
-        args.sdr1freqs.unwrap(),
-    );
-    sdr.open_sdr();
+    // Create a vector of all configured RTLSDR devices
+
+    let mut rtlsdr = vec![];
+
+    match args.sdr1serial {
+        Some(serial) => {
+            let ppm = args.sdr1ppm.unwrap_or(0);
+            let gain = args.sdr1gain.unwrap_or(0);
+            let bias_tee = args.sdr1biastee.unwrap_or(false);
+            let rtl_mult = args.sdr1mult.unwrap_or(160);
+            let frequencies = args.sdr1freqs.unwrap_or(vec![]);
+
+            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            sdr.open_sdr();
+
+            rtlsdr.push(sdr);
+        }
+        None => {
+            trace!("No SDR1 configured")
+        }
+    }
 }

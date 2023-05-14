@@ -47,7 +47,7 @@ impl RtlSdr {
     pub fn open_sdr(&mut self) {
         let mut device_index = None;
         for dev in devices() {
-            if dev.serial() == &self.serial {
+            if dev.serial() == self.serial {
                 device_index = Some(dev.index());
             }
         }
@@ -69,17 +69,17 @@ impl RtlSdr {
                     debug!("{} Using Gains: {:?}", self.serial, gains);
                     let mut close_gain = gains[0];
                     // loop through gains and see which value is closest to the desired gain
-                    for i in 0..32 {
-                        if gains[i] == 0 {
+                    for gain_value in gains {
+                        if gain_value == 0 {
                             continue;
                         }
 
                         let err1 = i32::abs(self.gain - close_gain);
-                        let err2 = i32::abs(self.gain - gains[i]);
+                        let err2 = i32::abs(self.gain - gain_value);
 
                         if err2 < err1 {
-                            trace!("{} Found closer gain: {}", self.serial, gains[i]);
-                            close_gain = gains[i];
+                            trace!("{} Found closer gain: {}", self.serial, gain_value);
+                            close_gain = gain_value;
                         }
                     }
 

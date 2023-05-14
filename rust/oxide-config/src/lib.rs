@@ -108,6 +108,461 @@ pub struct OxideInput {
         requires = "sdr1serial")
     ]
     pub sdr1decoding_type: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR2SERIAL",
+        value_parser,
+        default_value = None,
+        hide = true,
+        requires = "sdr2freqs",
+        requires = "sdr2decoding_type",
+    )]
+    pub sdr2serial: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR2GAIN",
+        value_parser = parse_sdr_gain,
+        default_value = "60",
+        hide = true,
+        requires = "sdr2serial"
+    )]
+    pub sdr2gain: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR2PPM",
+        value_parser,
+        default_value = "0",
+        hide = true,
+        requires = "sdr2serial"
+    )]
+    pub sdr2ppm: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR2BIASTEE",
+        value_parser,
+        default_value = "false",
+        hide = true,
+        requires = "sdr2serial"
+    )]
+    pub sdr2biastee: Option<bool>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR2MULT",
+        value_parser = validate_mult,
+        default_value = "160",
+        hide = true,
+        requires = "sdr2serial"
+    )]
+    pub sdr2mult: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR2FREQS",
+        value_parser = validate_freq,
+        num_args = 1..17,
+        default_value = None,
+        hide = true,
+        requires = "sdr2serial"
+    )]
+    pub sdr2freqs: Option<Vec<i32>>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR2DECODING_TYPE",
+        value_parser = validate_decoding_type,
+        default_value = None,
+        hide = true,
+        requires = "sdr2serial"
+    )]
+    pub sdr2decoding_type: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR3SERIAL",
+        value_parser,
+        default_value = None,
+        hide = true,
+        requires = "sdr3freqs",
+        requires = "sdr3decoding_type"
+    )]
+    pub sdr3serial: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR3GAIN",
+        value_parser = parse_sdr_gain,
+        default_value = "60",
+        hide = true,
+        requires = "sdr3serial"
+    )]
+    pub sdr3gain: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR3PPM",
+        value_parser,
+        default_value = "0",
+        hide = true,
+        requires = "sdr3serial"
+    )]
+    pub sdr3ppm: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR3BIASTEE",
+        value_parser,
+        default_value = "false",
+        hide = true,
+        requires = "sdr3serial"
+    )]
+    pub sdr3biastee: Option<bool>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR3MULT",
+        value_parser = validate_mult,
+        default_value = "160",
+        hide = true,
+        requires = "sdr3serial"
+    )]
+    pub sdr3mult: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR3FREQS",
+        value_parser = validate_freq,
+        num_args = 1..17,
+        default_value = None,
+        hide = true,
+        requires = "sdr3serial"
+    )]
+    pub sdr3freqs: Option<Vec<i32>>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR3DECODING_TYPE",
+        value_parser = validate_decoding_type,
+        default_value = None,
+        hide = true,
+        requires = "sdr3serial"
+    )]
+    pub sdr3decoding_type: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR4SERIAL",
+        value_parser,
+        default_value = None,
+        hide = true,
+        requires = "sdr4freqs",
+        requires = "sdr4decoding_type"
+    )]
+    pub sdr4serial: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR4GAIN",
+        value_parser = parse_sdr_gain,
+        default_value = "60",
+        hide = true,
+        requires = "sdr4serial"
+    )]
+    pub sdr4gain: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR4PPM",
+        value_parser,
+        default_value = "0",
+        hide = true,
+        requires = "sdr4serial"
+    )]
+    pub sdr4ppm: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR4BIASTEE",
+        value_parser,
+        default_value = "false",
+        hide = true,
+        requires = "sdr4serial"
+    )]
+    pub sdr4biastee: Option<bool>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR4MULT",
+        value_parser = validate_mult,
+        default_value = "160",
+        hide = true,
+        requires = "sdr4serial"
+    )]
+    pub sdr4mult: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR4FREQS",
+        value_parser = validate_freq,
+        num_args = 1..17,
+        default_value = None,
+        hide = true,
+        requires = "sdr4serial"
+    )]
+    pub sdr4freqs: Option<Vec<i32>>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR4DECODING_TYPE",
+        value_parser = validate_decoding_type,
+        default_value = None,
+        hide = true,
+        requires = "sdr4serial"
+    )]
+    pub sdr4decoding_type: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR5SERIAL",
+        value_parser,
+        default_value = None,
+        hide = true,
+        requires = "sdr5freqs",
+        requires = "sdr5decoding_type"
+    )]
+    pub sdr5serial: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR5GAIN",
+        value_parser = parse_sdr_gain,
+        default_value = "60",
+        hide = true,
+        requires = "sdr5serial"
+    )]
+    pub sdr5gain: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR5PPM",
+        value_parser,
+        default_value = "0",
+        hide = true,
+        requires = "sdr5serial"
+    )]
+    pub sdr5ppm: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR5BIASTEE",
+        value_parser,
+        default_value = "false",
+        hide = true,
+        requires = "sdr5serial"
+    )]
+    pub sdr5biastee: Option<bool>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR5MULT",
+        value_parser = validate_mult,
+        default_value = "160",
+        hide = true,
+        requires = "sdr5serial"
+    )]
+    pub sdr5mult: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR5FREQS",
+        value_parser = validate_freq,
+        num_args = 1..17,
+        default_value = None,
+        hide = true,
+        requires = "sdr5serial"
+    )]
+    pub sdr5freqs: Option<Vec<i32>>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR5DECODING_TYPE",
+        value_parser = validate_decoding_type,
+        default_value = None,
+        hide = true,
+        requires = "sdr5serial"
+    )]
+    pub sdr5decoding_type: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR6SERIAL",
+        value_parser,
+        default_value = None,
+        hide = true,
+        requires = "sdr6freqs",
+        requires = "sdr6decoding_type"
+    )]
+    pub sdr6serial: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR6GAIN",
+        value_parser = parse_sdr_gain,
+        default_value = "60",
+        hide = true,
+        requires = "sdr6serial"
+    )]
+    pub sdr6gain: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR6PPM",
+        value_parser,
+        default_value = "0",
+        hide = true,
+        requires = "sdr6serial"
+    )]
+    pub sdr6ppm: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR6BIASTEE",
+        value_parser,
+        default_value = "false",
+        hide = true,
+        requires = "sdr6serial"
+    )]
+    pub sdr6biastee: Option<bool>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR6MULT",
+        value_parser = validate_mult,
+        default_value = "160",
+        hide = true,
+        requires = "sdr6serial"
+    )]
+    pub sdr6mult: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR6FREQS",
+        value_parser = validate_freq,
+        num_args = 1..17,
+        default_value = None,
+        hide = true,
+        requires = "sdr6serial"
+    )]
+    pub sdr6freqs: Option<Vec<i32>>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR6DECODING_TYPE",
+        value_parser = validate_decoding_type,
+        default_value = None,
+        hide = true,
+        requires = "sdr6serial"
+    )]
+    pub sdr6decoding_type: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR7SERIAL",
+        value_parser,
+        default_value = None,
+        hide = true,
+        requires = "sdr7freqs",
+        requires = "sdr7decoding_type"
+    )]
+    pub sdr7serial: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR7GAIN",
+        value_parser = parse_sdr_gain,
+        default_value = "60",
+        hide = true,
+        requires = "sdr7serial"
+    )]
+    pub sdr7gain: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR7PPM",
+        value_parser,
+        default_value = "0",
+        hide = true,
+        requires = "sdr7serial"
+    )]
+    pub sdr7ppm: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR7BIASTEE",
+        value_parser,
+        default_value = "false",
+        hide = true,
+        requires = "sdr7serial"
+    )]
+    pub sdr7biastee: Option<bool>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR7MULT",
+        value_parser = validate_mult,
+        default_value = "160",
+        hide = true,
+        requires = "sdr7serial"
+    )]
+    pub sdr7mult: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR7FREQS",
+        value_parser = validate_freq,
+        num_args = 1..17,
+        default_value = None,
+        hide = true,
+        requires = "sdr7serial"
+    )]
+    pub sdr7freqs: Option<Vec<i32>>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR7DECODING_TYPE",
+        value_parser = validate_decoding_type,
+        default_value = None,
+        hide = true,
+        requires = "sdr7serial"
+    )]
+    pub sdr7decoding_type: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR8SERIAL",
+        value_parser,
+        default_value = None,
+        hide = true,
+        requires = "sdr8freqs",
+        requires = "sdr8decoding_type"
+    )]
+    pub sdr8serial: Option<String>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR8GAIN",
+        value_parser = parse_sdr_gain,
+        default_value = "60",
+        hide = true,
+        requires = "sdr8serial"
+    )]
+    pub sdr8gain: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR8PPM",
+        value_parser,
+        default_value = "0",
+        hide = true,
+        requires = "sdr8serial"
+    )]
+    pub sdr8ppm: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR8BIASTEE",
+        value_parser,
+        default_value = "false",
+        hide = true,
+        requires = "sdr8serial"
+    )]
+    pub sdr8biastee: Option<bool>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR8MULT",
+        value_parser = validate_mult,
+        default_value = "160",
+        hide = true,
+        requires = "sdr8serial"
+    )]
+    pub sdr8mult: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR8FREQS",
+        value_parser = validate_freq,
+        num_args = 1..17,
+        default_value = None,
+        hide = true,
+        requires = "sdr8serial"
+    )]
+    pub sdr8freqs: Option<Vec<i32>>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR8DECODING_TYPE",
+        value_parser = validate_decoding_type,
+        default_value = None,
+        hide = true,
+        requires = "sdr8serial"
+    )]
+    pub sdr8decoding_type: Option<String>,
 }
 
 custom_error! { OxideInputError
