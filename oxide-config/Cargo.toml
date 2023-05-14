@@ -12,5 +12,5 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-clap = { version = "4.2.5", features = ["derive", "env"] }
+clap = { version = "4.2.7", features = ["derive", "env"] }
 custom_error = "1.9.2"

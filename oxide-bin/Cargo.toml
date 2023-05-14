@@ -16,4 +16,4 @@ log = "0.4.17"
 rtlsdr = { path = "../rtlsdr" }
 oxide-config = { path = "../oxide-config" }
 oxide-logging = { path = "../oxide-logging" }
-tokio = { version = "1.28.0", features = ["full", "tracing"] }
+tokio = { version = "1.28.1", features = ["full", "tracing"] }

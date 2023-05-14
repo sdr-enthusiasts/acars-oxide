@@ -16,6 +16,4 @@ log = "0.4.17"
 libc = "0.2.144"
 rtlsdr_mt = "2.0.0"
 rtlsdr_sys = "1.1.2"
-#rtlsdr-rs = { git = "https://github.com/ccostes/rtl-sdr-rs.git" }
-#rtlsdr-rs = { path = "../../rtl-sdr-rs" }
-ctrlc = "3.2.3"
+ctrlc = "3.2.5"
