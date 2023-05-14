@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate log;
-extern crate rtlsdr;
+extern crate oxide_rtlsdr;
 use oxide_config::clap::Parser;
 use oxide_config::OxideInput;
 use oxide_logging::SetupLogging;
-use rtlsdr::RtlSdr;
+use oxide_rtlsdr::RtlSdr;
 
 #[tokio::main]
 async fn main() {

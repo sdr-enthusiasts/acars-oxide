@@ -1,5 +1,5 @@
 [workspace]
-members = ["oxide-bin", "oxide-config", "rtlsdr"]
+members = ["oxide-bin", "oxide-config", "oxide-rtlsdr"]
 
 [workspace.package]
 edition = "2021"
