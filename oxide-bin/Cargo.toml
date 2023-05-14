@@ -12,6 +12,8 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+log = "0.4.17"
 rtlsdr = { path = "../rtlsdr" }
 oxide-config = { path = "../oxide-config" }
+oxide-logging = { path = "../oxide-logging" }
 tokio = { version = "1.28.0", features = ["full", "tracing"] }

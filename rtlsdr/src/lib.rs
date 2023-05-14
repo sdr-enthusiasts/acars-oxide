@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate log;
 use rtlsdr_mt::{Controller, Reader};
 use rtlsdr_sys;
 extern crate libc;
@@ -33,19 +35,18 @@ impl RtlSdr {
     pub fn open_sdr(&mut self) {
         let mut device_index = None;
         for dev in devices() {
-            println!("{}", dev);
             if dev.serial() == &self.serial {
                 device_index = Some(dev.index());
             }
         }
         match device_index {
             None => {
-                println!("Device not found");
+                error!("{} Device not found", self.serial);
                 return;
             }
             Some(idx) => {
                 self.index = Some(idx);
-                println!("Using Found device at index {}", idx);
+                info!("{} Using Found device at index {}", self.serial, idx);
 
                 let (mut ctl, reader) = rtlsdr_mt::open(self.index.unwrap()).unwrap();
 
@@ -54,7 +55,7 @@ impl RtlSdr {
                 if self.gain <= 500 {
                     let mut gains = [0i32; 32];
                     ctl.tuner_gains(&mut gains);
-                    println!("Using Gains: {:?}", gains);
+                    debug!("{} Using Gains: {:?}", self.serial, gains);
                     let mut close_gain = gains[0];
                     // loop through gains and see which value is closest to the desired gain
                     for i in 0..32 {
@@ -64,29 +65,38 @@ impl RtlSdr {
 
                         let err1 = i32::abs(self.gain - close_gain);
                         let err2 = i32::abs(self.gain - gains[i]);
-                        println!("err1: {}", err1);
-                        println!("err2: {}", err2);
 
                         if err2 < err1 {
-                            println!("Found closer gain: {}", gains[i]);
+                            trace!("{} Found closer gain: {}", self.serial, gains[i]);
                             close_gain = gains[i];
                         }
                     }
 
-                    println!("Setting gain to {}", close_gain);
-                    self.gain = close_gain;
+                    if self.gain != close_gain {
+                        warn!(
+                            "{} Input gain {} was normalized to a SDR supported gain of {}. Gain is set to the normalized gain.",
+                            self.serial, self.gain, close_gain
+                        );
+                        self.gain = close_gain;
+                    } else {
+                        info!("{} setting gain to {}", self.serial, self.gain);
+                    }
+
                     ctl.disable_agc().unwrap();
                     ctl.set_tuner_gain(self.gain).unwrap();
                 } else {
-                    println!("Setting gain to Auto Gain Control (AGC)");
+                    info!("{} Setting gain to Auto Gain Control (AGC)", self.serial);
                     ctl.enable_agc().unwrap();
                 }
 
-                println!("Setting PPM to {}", self.ppm);
+                info!("{} Setting PPM to {}", self.serial, self.ppm);
                 ctl.set_ppm(self.ppm).unwrap();
 
                 if self.bias_tee {
-                    println!("BiasTee is not supported right now. Maybe soon...");
+                    warn!(
+                        "{} BiasTee is not supported right now. Maybe soon...",
+                        self.serial
+                    );
                 }
 
                 ctl.set_center_freq(774_781_250).unwrap();
@@ -186,7 +196,7 @@ pub fn devices() -> impl Iterator<Item = DeviceAttributes> {
         ));
     }
 
-    println!("Found {} RTL-SDR devices", devices.len());
+    info!("Found {} RTL-SDR devices", devices.len());
 
     devices.into_iter()
 }

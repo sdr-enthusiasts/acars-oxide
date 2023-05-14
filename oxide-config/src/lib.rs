@@ -27,7 +27,7 @@ pub struct OxideInput {
     /// SDR specific options.
     /// For each option, the format for the command line flag is: --sdrYoptionname where Y is an integer between 1 and 8.
     /// For example, --sdr1gain 20 --sdr2gain 20
-    /// The options are: gain, ppm, bias_tee, mult, freq, decoding_type, and serial.
+    /// The options are: gain, ppm, biastee, mult, freq, decoding_type, and serial.
     /// Please note that using the device index, as reported by rtl_test or other tools, is not supported. The serial number must be used.
     /// Of special note, `decoding_type` indicates if the message is decoded using the VDLM2 protocol or the ACARS protocol. `acars` and `vdlm2` are valid options.
     #[clap(
@@ -68,13 +68,13 @@ pub struct OxideInput {
     pub sdr1ppm: Option<i32>,
     #[clap(
         long,
-        env = "OXIDE_SDR1BIAS_TEE",
+        env = "OXIDE_SDR1BIASTEE",
         value_parser,
         default_value = "false",
         hide = true,
         requires = "sdr1serial"
     )]
-    pub sdr1bias_tee: Option<bool>,
+    pub sdr1biastee: Option<bool>,
     #[clap(
         long,
         env = "OXIDE_SDR1MULT",

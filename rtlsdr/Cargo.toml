@@ -12,6 +12,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+log = "0.4.17"
 libc = "0.2.144"
 rtlsdr_mt = "2.0.0"
 rtlsdr_sys = "1.1.2"
