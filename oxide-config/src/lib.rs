@@ -3,6 +3,7 @@ extern crate custom_error;
 
 use custom_error::custom_error;
 use std::num::ParseFloatError;
+use std::num::ParseIntError;
 
 use clap::Parser;
 
@@ -79,13 +80,21 @@ pub struct OxideInput {
         long,
         env = "OXIDE_SDR1MULT",
         value_parser = validate_mult,
-        default_value = "160.0",
+        default_value = "160",
         hide = true,
         requires = "sdr1serial"
     )]
-    pub sdr1mult: Option<f32>,
-    #[clap(long, env = "OXIDE_SDR1FREQS", value_parser, default_value = None, hide = true, requires = "sdr1serial")]
-    pub sdr1freqs: Option<Vec<String>>,
+    pub sdr1mult: Option<i32>,
+    #[clap(
+        long,
+        env = "OXIDE_SDR1FREQS",
+        value_parser = validate_freq,
+        num_args = 1..9,
+        default_value = None,
+        hide = true,
+        requires = "sdr1serial"
+    )]
+    pub sdr1freqs: Option<Vec<i32>>,
     #[clap(
         long,
         env = "OXIDE_SDR1DECODING_TYPE",
@@ -99,19 +108,54 @@ pub struct OxideInput {
 
 custom_error! { OxideInputError
     ParseFloatError { source: ParseFloatError } = "Error parsing float",
+    ParseIntError { source: ParseIntError } = "Error parsing int",
     GainRangeError { input: f32, min: f32, max: f32 } = "Gain {input} out of range. Should be between {min} and {max}",
-    MultError { input: f32 } = "Mult {input} out of range. Should be 160 or 192.",
+    MultError { input: i32 } = "Mult {input} out of range. Should be 160 or 192.",
     DecodingTypeError { input: String } = "Decoding type {input} is not supported. Please use one of the following: VDLM2, ACARS",
-    FrequencyRangeError { max_freq: String, min_freq: String, range: String } = "Range between {min_freq} and {max_freq} is {range} MHz. Should be less than or equal to 2Mhz",
+    FrequencyMinMaxRangeError { max_freq: String, min_freq: String, range: String } = "Range between {min_freq} and {max_freq} is {range} MHz. Should be less than or equal to 2Mhz",
+    FrequencyOutsideOfAirbandError { freq: String } = "Frequency {freq} is outside of the airband. Should be between 108 and 137 MHz",
 }
 
-// fn validate_freq(freq: &str) -> Result<(), OxideInputError> {
+fn validate_freq(freqs_string: &str) -> Result<i32, OxideInputError> {
+    let freq = freqs_string.parse::<f32>()?;
+    if freq < 108.0 || freq > 137.0 {
+        return Err(OxideInputError::FrequencyOutsideOfAirbandError {
+            freq: freq.to_string(),
+        });
+    } else {
+        return Ok((freq * 1000000.0) as i32);
+    }
+}
 
+// fn validate_freq(freqs_string: &str) -> Result<std::vec::Vec<i32>, OxideInputError> {
+//     println!("Calling function {}", freqs_string);
+//     let freqs: Vec<&str> = freqs_string.split("\n").collect();
+//     if freqs.len() > 8 {
+//         return Err(OxideInputError::TooManyFreqsError {
+//             number_of_freqs: freqs.len() as i32,
+//         });
+//     }
+
+//     let mut freqs_int = vec![];
+
+//     for freq in freqs {
+//         println!("test {}", freq);
+//         let freq = freq.parse::<f32>()?;
+//         if freq < 108.0 || freq > 137.0 {
+//             return Err(OxideInputError::FrequencyOutsideOfAirbandError {
+//                 freq: freq.to_string(),
+//             });
+//         } else {
+//             freqs_int.push((freq * 1000000.0) as i32);
+//         }
+//     }
+
+//     Ok(freqs_int)
 // }
 
-fn validate_mult(env: &str) -> Result<f32, OxideInputError> {
-    let mult = env.parse::<f32>()?;
-    if mult != 160.0 && mult != 192.0 {
+fn validate_mult(env: &str) -> Result<i32, OxideInputError> {
+    let mult = env.parse::<i32>()?;
+    if mult != 160 && mult != 192 {
         return Err(OxideInputError::MultError { input: mult });
     }
     Ok(mult)
