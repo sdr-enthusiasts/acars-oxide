@@ -121,12 +121,12 @@ custom_error! { OxideInputError
 
 fn validate_freq(freqs_string: &str) -> Result<i32, OxideInputError> {
     let freq = freqs_string.parse::<f32>()?;
-    if freq < 108.0 || freq > 137.0 {
-        return Err(OxideInputError::FrequencyOutsideOfAirbandError {
+    if !(108.0..=137.0).contains(&freq) {
+        Err(OxideInputError::FrequencyOutsideOfAirbandError {
             freq: freq.to_string(),
-        });
+        })
     } else {
-        return Ok((freq * 1000000.0) as i32);
+        Ok((freq * 1000000.0) as i32)
     }
 }
 
@@ -149,7 +149,7 @@ fn validate_decoding_type(env: &str) -> Result<String, OxideInputError> {
 
 fn parse_sdr_gain(env: &str) -> Result<i32, OxideInputError> {
     let gain = env.parse::<f32>()?;
-    if gain < MIN_GAIN || gain > MAX_GAIN {
+    if !(MIN_GAIN..=MAX_GAIN).contains(&gain) {
         return Err(OxideInputError::GainRangeError {
             input: gain,
             min: MIN_GAIN,
@@ -179,12 +179,12 @@ impl SDRConfig {
         serial: Option<String>,
     ) -> SDRConfig {
         SDRConfig {
-            gain: gain,
-            ppm: ppm,
-            bias_tee: bias_tee,
-            mult: mult,
-            freq: freq,
-            serial: serial,
+            gain,
+            ppm,
+            bias_tee,
+            mult,
+            freq,
+            serial,
         }
     }
 
