@@ -20,6 +20,8 @@ async fn main() {
         args.sdr1ppm.unwrap(),
         args.sdr1gain.unwrap(),
         args.sdr1biastee.unwrap(),
+        args.sdr1mult.unwrap(),
+        args.sdr1freqs.unwrap(),
     );
     sdr.open_sdr();
 }

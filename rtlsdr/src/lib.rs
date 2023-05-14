@@ -7,7 +7,7 @@ use std::ffi::c_char;
 use std::ffi::CStr;
 use std::fmt::{self, Display, Formatter};
 
-const RTLMULTMAX: usize = 320;
+const INTRATE: i32 = 12500;
 
 pub struct RtlSdr {
     ctl: Option<Controller>,
@@ -17,10 +17,20 @@ pub struct RtlSdr {
     ppm: i32,
     gain: i32,
     bias_tee: bool,
+    rtl_mult: i32,
+    frequencies: Vec<i32>,
 }
 
 impl RtlSdr {
-    pub fn new(serial: String, ppm: i32, gain: i32, bias_tee: bool) -> Self {
+    pub fn new(
+        serial: String,
+        ppm: i32,
+        gain: i32,
+        bias_tee: bool,
+        rtl_mult: i32,
+        frequencies: Vec<i32>,
+    ) -> RtlSdr {
+        frequencies.clone().sort();
         Self {
             ctl: None,
             reader: None,
@@ -29,6 +39,8 @@ impl RtlSdr {
             ppm,
             gain,
             bias_tee,
+            rtl_mult,
+            frequencies,
         }
     }
 
@@ -99,7 +111,34 @@ impl RtlSdr {
                     );
                 }
 
-                ctl.set_center_freq(774_781_250).unwrap();
+                let rtl_in_rate = INTRATE * self.rtl_mult;
+                let mut channels: Vec<i32> = Vec::new();
+
+                for freq in self.frequencies.iter() {
+                    channels.push(freq + INTRATE / 2);
+                }
+                channels.sort();
+
+                // TODO: Make sure we're setting the center freq right....
+
+                if self.frequencies.len() > 1 {
+                    let center_freq =
+                        (self.frequencies[self.frequencies.len() - 1] + self.frequencies[0]) / 2;
+                    info!(
+                        "{} Setting center frequency to {}",
+                        self.serial, center_freq
+                    );
+                    ctl.set_center_freq(center_freq as u32).unwrap();
+                } else {
+                    info!(
+                        "{} Setting center frequency to {}",
+                        self.serial, self.frequencies[0]
+                    );
+                    ctl.set_center_freq(self.frequencies[0] as u32).unwrap();
+                }
+
+                info!("{} Setting sample rate to {}", self.serial, rtl_in_rate);
+                ctl.set_sample_rate(rtl_in_rate as u32).unwrap();
 
                 self.ctl = Some(ctl);
 
