@@ -5,20 +5,28 @@ use std::ffi::c_char;
 use std::ffi::CStr;
 use std::fmt::{self, Display, Formatter};
 
+const RTLMULTMAX: usize = 320;
+
 pub struct RtlSdr {
     ctl: Option<Controller>,
     reader: Option<Reader>,
     index: Option<u32>,
     serial: String,
+    ppm: i32,
+    gain: i32,
+    bias_tee: bool,
 }
 
 impl RtlSdr {
-    pub fn new(serial: String) -> Self {
+    pub fn new(serial: String, ppm: i32, gain: i32, bias_tee: bool) -> Self {
         Self {
             ctl: None,
             reader: None,
             index: None,
             serial,
+            ppm,
+            gain,
+            bias_tee,
         }
     }
 
@@ -43,8 +51,44 @@ impl RtlSdr {
 
                 self.reader = Some(reader);
 
-                ctl.enable_agc().unwrap();
-                ctl.set_ppm(-2).unwrap();
+                if self.gain <= 500 {
+                    let mut gains = [0i32; 32];
+                    ctl.tuner_gains(&mut gains);
+                    println!("Using Gains: {:?}", gains);
+                    let mut close_gain = gains[0];
+                    // loop through gains and see which value is closest to the desired gain
+                    for i in 0..32 {
+                        if gains[i] == 0 {
+                            continue;
+                        }
+
+                        let err1 = i32::abs(self.gain - close_gain);
+                        let err2 = i32::abs(self.gain - gains[i]);
+                        println!("err1: {}", err1);
+                        println!("err2: {}", err2);
+
+                        if err2 < err1 {
+                            println!("Found closer gain: {}", gains[i]);
+                            close_gain = gains[i];
+                        }
+                    }
+
+                    println!("Setting gain to {}", close_gain);
+                    self.gain = close_gain;
+                    ctl.disable_agc().unwrap();
+                    ctl.set_tuner_gain(self.gain).unwrap();
+                } else {
+                    println!("Setting gain to Auto Gain Control (AGC)");
+                    ctl.enable_agc().unwrap();
+                }
+
+                println!("Setting PPM to {}", self.ppm);
+                ctl.set_ppm(self.ppm).unwrap();
+
+                if self.bias_tee {
+                    println!("BiasTee is not supported right now. Maybe soon...");
+                }
+
                 ctl.set_center_freq(774_781_250).unwrap();
 
                 self.ctl = Some(ctl);

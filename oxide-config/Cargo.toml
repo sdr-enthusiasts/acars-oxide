@@ -1,5 +1,5 @@
 [package]
-name = "acars-oxide"
+name = "oxide-config"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,6 +12,5 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-rtlsdr = { path = "../rtlsdr" }
-oxide-config = { path = "../oxide-config" }
-tokio = { version = "1.28.0", features = ["full", "tracing"] }
+clap = { version = "4.2.5", features = ["derive", "env"] }
+custom_error = "1.9.2"
