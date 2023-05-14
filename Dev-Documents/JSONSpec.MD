@@ -51,8 +51,8 @@ The `decoder_version` field is a `semver` formatted string that indicates the ve
 
 The `message_type` field is a string that describes the type of message. The following values are valid:
 
-* `acars`
-* `vdlm2`
+- `acars`
+- `vdlm2`
 
 ### Message Version
 
@@ -62,8 +62,8 @@ The `message_version` field is a `semver` formatted string that indicates which 
 
 The `message_timestamp` field is an object that contains the timestamp of the message. The timestamp is a UNIX timestamp, and is represented as an object with two fields:
 
-* `sec`: The number of seconds since the UNIX epoch.
-* `usec`: The number of microseconds since the UNIX epoch.
+- `sec`: The number of seconds since the UNIX epoch.
+- `usec`: The number of microseconds since the UNIX epoch.
 
 ### Frequency
 
@@ -77,7 +77,7 @@ The `message_uuid` field is a string that contains a UUID that uniquely identifi
 
 The `originator_type` field is a string that indicates the type of entity that originated the message. The following values are valid:
 
-* `aircraft`
-* `ground_station`
+- `aircraft`
+- `ground_station`
 
 The `originator_type` field is required, and the consumer of the message should use the `aircraft_ids` or `ground_station_ids` fields to gather additional data about the message originator.
