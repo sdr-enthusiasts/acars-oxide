@@ -36,4 +36,130 @@ async fn main() {
             trace!("No SDR1 configured")
         }
     }
+
+    match args.sdr2serial {
+        Some(serial) => {
+            let ppm = args.sdr2ppm.unwrap_or(0);
+            let gain = args.sdr2gain.unwrap_or(0);
+            let bias_tee = args.sdr2biastee.unwrap_or(false);
+            let rtl_mult = args.sdr2mult.unwrap_or(160);
+            let frequencies = args.sdr2freqs.unwrap_or(vec![]);
+
+            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            sdr.open_sdr();
+
+            rtlsdr.push(sdr);
+        }
+        None => {
+            trace!("No SDR2 configured")
+        }
+    }
+
+    match args.sdr3serial {
+        Some(serial) => {
+            let ppm = args.sdr3ppm.unwrap_or(0);
+            let gain = args.sdr3gain.unwrap_or(0);
+            let bias_tee = args.sdr3biastee.unwrap_or(false);
+            let rtl_mult = args.sdr3mult.unwrap_or(160);
+            let frequencies = args.sdr3freqs.unwrap_or(vec![]);
+
+            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            sdr.open_sdr();
+
+            rtlsdr.push(sdr);
+        }
+        None => {
+            trace!("No SDR3 configured")
+        }
+    }
+
+    match args.sdr4serial {
+        Some(serial) => {
+            let ppm = args.sdr4ppm.unwrap_or(0);
+            let gain = args.sdr4gain.unwrap_or(0);
+            let bias_tee = args.sdr4biastee.unwrap_or(false);
+            let rtl_mult = args.sdr4mult.unwrap_or(160);
+            let frequencies = args.sdr4freqs.unwrap_or(vec![]);
+
+            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            sdr.open_sdr();
+
+            rtlsdr.push(sdr);
+        }
+        None => {
+            trace!("No SDR4 configured")
+        }
+    }
+
+    match args.sdr5serial {
+        Some(serial) => {
+            let ppm = args.sdr5ppm.unwrap_or(0);
+            let gain = args.sdr5gain.unwrap_or(0);
+            let bias_tee = args.sdr5biastee.unwrap_or(false);
+            let rtl_mult = args.sdr5mult.unwrap_or(160);
+            let frequencies = args.sdr5freqs.unwrap_or(vec![]);
+
+            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            sdr.open_sdr();
+
+            rtlsdr.push(sdr);
+        }
+        None => {
+            trace!("No SDR5 configured")
+        }
+    }
+
+    match args.sdr6serial {
+        Some(serial) => {
+            let ppm = args.sdr6ppm.unwrap_or(0);
+            let gain = args.sdr6gain.unwrap_or(0);
+            let bias_tee = args.sdr6biastee.unwrap_or(false);
+            let rtl_mult = args.sdr6mult.unwrap_or(160);
+            let frequencies = args.sdr6freqs.unwrap_or(vec![]);
+
+            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            sdr.open_sdr();
+
+            rtlsdr.push(sdr);
+        }
+        None => {
+            trace!("No SDR6 configured")
+        }
+    }
+
+    match args.sdr7serial {
+        Some(serial) => {
+            let ppm = args.sdr7ppm.unwrap_or(0);
+            let gain = args.sdr7gain.unwrap_or(0);
+            let bias_tee = args.sdr7biastee.unwrap_or(false);
+            let rtl_mult = args.sdr7mult.unwrap_or(160);
+            let frequencies = args.sdr7freqs.unwrap_or(vec![]);
+
+            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            sdr.open_sdr();
+
+            rtlsdr.push(sdr);
+        }
+        None => {
+            trace!("No SDR7 configured")
+        }
+    }
+
+    match args.sdr8serial {
+        Some(serial) => {
+            let ppm = args.sdr8ppm.unwrap_or(0);
+            let gain = args.sdr8gain.unwrap_or(0);
+            let bias_tee = args.sdr8biastee.unwrap_or(false);
+            let rtl_mult = args.sdr8mult.unwrap_or(160);
+            let frequencies = args.sdr8freqs.unwrap_or(vec![]);
+
+            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            sdr.open_sdr();
+
+            rtlsdr.push(sdr);
+        }
+        None => {
+            trace!("No SDR8 configured")
+        }
+    }
 }
