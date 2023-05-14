@@ -46,7 +46,8 @@ pub struct OxideInput {
         default_value = None,
         hide = true,
         requires = "sdr1freqs",
-        requires = "sdr1decoding_type"
+        requires = "sdr1decoding_type",
+        required = true
     )]
     pub sdr1serial: Option<String>,
     #[clap(
