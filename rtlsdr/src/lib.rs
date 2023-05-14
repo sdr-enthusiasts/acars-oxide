@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 use rtlsdr_mt::{Controller, Reader};
-use rtlsdr_sys;
+
 extern crate libc;
 use std::ffi::c_char;
 use std::ffi::CStr;
@@ -54,7 +54,6 @@ impl RtlSdr {
         match device_index {
             None => {
                 error!("{} Device not found", self.serial);
-                return;
             }
             Some(idx) => {
                 self.index = Some(idx);
@@ -210,7 +209,7 @@ impl Display for DeviceAttributes {
 /// name can be opened at index 0, and so on.
 
 pub fn devices() -> impl Iterator<Item = DeviceAttributes> {
-    let count = unsafe { rtlsdr_sys::rtlsdr_get_device_count() } as u32;
+    let count = unsafe { rtlsdr_sys::rtlsdr_get_device_count() };
 
     let mut devices = Vec::with_capacity(count as usize);
 
