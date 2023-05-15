@@ -6,9 +6,15 @@ extern crate libc;
 use std::ffi::c_char;
 use std::ffi::CStr;
 use std::fmt::{self, Display, Formatter};
+use std::ops::Add;
 
 const INTRATE: i32 = 12500;
 const RTLOUTBUFSZ: usize = 1024;
+const FLEN: i32 = (INTRATE / 1200) + 1;
+const MFLTOVER: usize = 12;
+const FLENO: usize = FLEN as usize * MFLTOVER + 1;
+const PLLG: f32 = 38e-4;
+const PLLC: f32 = 0.52;
 
 enum ACARSState {
     WSYN,
@@ -25,42 +31,150 @@ struct Channel {
     freq: i32,
     wf: Vec<num::Complex<f32>>,
     dm_buffer: Vec<f32>,
-    MskPhi: i32,
-    MskDf: i32,
+    MskPhi: f32,
+    MskDf: f32,
     MskClk: f32,
     MskLvlSum: f32,
     MskBitCount: i32,
     MskS: u32,
     idx: u32,
-    inb: num::Complex<f32>,
+    inb: [num::Complex<f32>; FLEN as usize],
 
-    outbits: Vec<u8>, // orignial was unsigned char.....
+    outbits: u32, // orignial was unsigned char.....
     nbits: i32,
     acars_state: ACARSState,
+    h: [f32; FLENO],
 }
 
 impl Channel {
     pub fn new(channel_number: i32, freq: i32, wf: Vec<num::Complex<f32>>) -> Self {
+        let mut h: [f32; FLENO] = [0.0; FLENO];
+        for i in 0..FLENO - 1 {
+            h[i] = f32::cos(
+                2.0 * std::f32::consts::PI * 600.0 / INTRATE as f32 / MFLTOVER as f32
+                    * (i as f32 - (FLENO as f32 - 1.0) / 2.0),
+            );
+            if h[i] < 0.0 {
+                h[i] = 0.0;
+            };
+        }
+
         Self {
             channel_number,
             freq,
             wf,
             dm_buffer: vec![0.0; RTLOUTBUFSZ],
-            MskPhi: 0,
-            MskDf: 0,
+            MskPhi: 0.0,
+            MskDf: 0.0,
             MskClk: 0.0,
             MskLvlSum: 0.0,
             MskBitCount: 0,
             MskS: 0,
             idx: 0,
-            inb: num::Complex::new(0.0, 0.0),
-            outbits: Vec::new(),
-            nbits: 0,
+            inb: [num::Complex::new(0.0, 0.0); FLEN as usize],
+            outbits: 0,
+            nbits: 8,
             acars_state: ACARSState::WSYN,
+            h: h,
         }
     }
 
-    pub fn demodMSK(len: u32) {}
+    pub fn demodMSK(&mut self, len: u32) {
+        /* MSK demod */
+
+        for n in 0..len - 1 {
+            let in_: f32;
+            let s: f32;
+            let mut v: num::Complex<f32> = num::Complex::new(0.0, 0.0);
+            let mut o: f32;
+
+            /* VCO */
+            s = 1800.0 / INTRATE as f32 * 2.0 * std::f32::consts::PI + self.MskDf as f32;
+            self.MskPhi += s;
+            if self.MskPhi >= 2.0 * std::f32::consts::PI {
+                self.MskPhi -= 2.0 * std::f32::consts::PI
+            };
+
+            /* mixer */
+            in_ = self.dm_buffer[n as usize];
+            self.inb[self.idx as usize] = in_ * num::Complex::exp(-self.MskPhi * num::Complex::i());
+            self.idx = (self.idx + 1) % (FLEN as u32);
+
+            /* bit clock */
+            self.MskClk += s;
+            if self.MskClk >= 3.0 * std::f32::consts::PI / 2.0 - s / 2.0 {
+                let dphi: f32;
+                let vo: f32;
+                let lvl: f32;
+
+                self.MskClk -= 3.0 * std::f32::consts::PI / 2.0;
+
+                /* matched filter */
+                o = MFLTOVER as f32 * (self.MskClk / s + 0.5);
+                if o > MFLTOVER as f32 {
+                    o = MFLTOVER as f32
+                };
+                // for (v = 0, j = 0; j < FLEN; j++,o+=MFLTOVER) {
+                // 	v += h[o]*ch->inb[(j+idx)%FLEN];
+                // }
+
+                let mut j = 0;
+
+                while j < FLEN {
+                    v = v.add(
+                        self.h[o as usize]
+                            * self.inb[(j as usize + self.idx as usize) % FLEN as usize],
+                    );
+                    j += 1;
+                    o += MFLTOVER as f32;
+                }
+
+                /* normalize */
+                lvl = v.norm();
+                v /= lvl + 1e-8;
+                self.MskLvlSum += lvl * lvl / 4.0;
+                self.MskBitCount += 1;
+
+                if self.MskS & 1 != 0 {
+                    vo = v.im;
+                    if vo >= 0.0 {
+                        dphi = -v.re;
+                    } else {
+                        dphi = v.re;
+                    };
+                } else {
+                    vo = v.re;
+                    if vo >= 0.0 {
+                        dphi = v.im;
+                    } else {
+                        dphi = -v.im;
+                    };
+                }
+                if self.MskS & 2 != 0 {
+                    self.put_bit(-vo);
+                } else {
+                    self.put_bit(vo);
+                }
+                self.MskS += 1;
+
+                /* PLL filter */
+                self.MskDf = PLLC * self.MskDf + (1.0 - PLLC) * PLLG * dphi;
+            }
+        }
+    }
+
+    fn put_bit(&mut self, bit: f32) {
+        self.outbits >>= 1;
+        if bit > 0.0 {
+            self.outbits |= 0x80;
+        }
+
+        self.nbits -= 1;
+        if self.nbits <= 0 {
+            // DECODE ACARS!
+            self.nbits = 8;
+        }
+    }
 }
 
 pub struct RtlSdr {
@@ -275,6 +389,10 @@ impl RtlSdr {
 
                                 self.channel[channel_index].dm_buffer[m] = d.norm();
                             }
+                        }
+
+                        for channel_index in 0..self.channel.len() - 1 {
+                            self.channel[channel_index].demodMSK(RTLOUTBUFSZ as u32);
                         }
                     })
                     .unwrap();
