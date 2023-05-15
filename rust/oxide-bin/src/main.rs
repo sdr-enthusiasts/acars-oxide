@@ -5,13 +5,15 @@ use oxide_config::clap::Parser;
 use oxide_config::OxideInput;
 use oxide_logging::SetupLogging;
 use oxide_rtlsdr::RtlSdr;
+use oxide_scanner;
+use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn main() {
     let args: OxideInput = OxideInput::parse();
     args.logging.enable_logging();
     debug!(
-        "Starting ACARS Oxide with the following options: {:?}",
+        "Starting ACARS Oxide with the following options: {:#?}",
         args
     );
 
@@ -27,8 +29,7 @@ async fn main() {
             let rtl_mult = args.sdr1mult.unwrap_or(160);
             let frequencies = args.sdr1freqs.unwrap_or(vec![]);
 
-            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
-            sdr.open_sdr();
+            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
 
             rtlsdr.push(sdr);
         }
@@ -45,8 +46,7 @@ async fn main() {
             let rtl_mult = args.sdr2mult.unwrap_or(160);
             let frequencies = args.sdr2freqs.unwrap_or(vec![]);
 
-            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
-            sdr.open_sdr();
+            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
 
             rtlsdr.push(sdr);
         }
@@ -63,8 +63,7 @@ async fn main() {
             let rtl_mult = args.sdr3mult.unwrap_or(160);
             let frequencies = args.sdr3freqs.unwrap_or(vec![]);
 
-            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
-            sdr.open_sdr();
+            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
 
             rtlsdr.push(sdr);
         }
@@ -81,8 +80,7 @@ async fn main() {
             let rtl_mult = args.sdr4mult.unwrap_or(160);
             let frequencies = args.sdr4freqs.unwrap_or(vec![]);
 
-            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
-            sdr.open_sdr();
+            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
 
             rtlsdr.push(sdr);
         }
@@ -99,8 +97,7 @@ async fn main() {
             let rtl_mult = args.sdr5mult.unwrap_or(160);
             let frequencies = args.sdr5freqs.unwrap_or(vec![]);
 
-            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
-            sdr.open_sdr();
+            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
 
             rtlsdr.push(sdr);
         }
@@ -117,8 +114,7 @@ async fn main() {
             let rtl_mult = args.sdr6mult.unwrap_or(160);
             let frequencies = args.sdr6freqs.unwrap_or(vec![]);
 
-            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
-            sdr.open_sdr();
+            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
 
             rtlsdr.push(sdr);
         }
@@ -135,8 +131,7 @@ async fn main() {
             let rtl_mult = args.sdr7mult.unwrap_or(160);
             let frequencies = args.sdr7freqs.unwrap_or(vec![]);
 
-            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
-            sdr.open_sdr();
+            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
 
             rtlsdr.push(sdr);
         }
@@ -153,13 +148,21 @@ async fn main() {
             let rtl_mult = args.sdr8mult.unwrap_or(160);
             let frequencies = args.sdr8freqs.unwrap_or(vec![]);
 
-            let mut sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
-            sdr.open_sdr();
+            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
 
             rtlsdr.push(sdr);
         }
         None => {
             trace!("No SDR8 configured")
         }
+    }
+
+    let scanner = oxide_scanner::OxideScanner::new(rtlsdr);
+    scanner.run().await;
+
+    trace!("Starting the sleep loop");
+
+    loop {
+        sleep(Duration::from_millis(100)).await;
     }
 }

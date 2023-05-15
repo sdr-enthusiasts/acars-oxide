@@ -140,22 +140,39 @@ impl RtlSdr {
                 ctl.set_sample_rate(rtl_in_rate as u32).unwrap();
 
                 self.ctl = Some(ctl);
-
-                // std::thread::spawn(move || loop {
-                //     let next = self.ctl.center_freq() + 1000;
-                //     self.ctl.set_center_freq(next).unwrap();
-
-                //     std::thread::sleep(std::time::Duration::from_secs(1));
-                // });
-
-                // self.reader
-                //     .read_async(4, 32768, |bytes| {
-                //         println!("i[0] = {}", bytes[0]);
-                //         println!("q[0] = {}", bytes[1]);
-                //     })
-                //     .unwrap();
             }
         }
+    }
+
+    pub fn close_sdr(self) {
+        match self.ctl {
+            None => {
+                error!("{} Device not open", self.serial);
+            }
+            Some(mut ctl) => {
+                ctl.cancel_async_read();
+            }
+        }
+    }
+
+    pub async fn read_samples(self) {
+        match self.reader {
+            None => {
+                error!("{} Device not open", self.serial);
+            }
+            Some(mut reader) => {
+                reader
+                    .read_async(4, 32768, |bytes| {
+                        println!("i[0] = {}", bytes[0]);
+                        println!("q[0] = {}", bytes[1]);
+                    })
+                    .unwrap();
+            }
+        }
+    }
+
+    pub fn get_serial(&self) -> &str {
+        &self.serial
     }
 }
 

@@ -1,5 +1,10 @@
 [workspace]
-members = ["rust/oxide-bin", "rust/oxide-config", "rust/oxide-rtlsdr"]
+members = [
+    "rust/oxide-bin",
+    "rust/oxide-config",
+    "rust/oxide-rtlsdr",
+    "rust/oxide-scanner",
+]
 
 [workspace.package]
 edition = "2021"
