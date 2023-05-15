@@ -2,6 +2,7 @@
 members = [
     "rust/oxide-bin",
     "rust/oxide-config",
+    "rust/oxide-logging",
     "rust/oxide-rtlsdr",
     "rust/oxide-scanner",
 ]

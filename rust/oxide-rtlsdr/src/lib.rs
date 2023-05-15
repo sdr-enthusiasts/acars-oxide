@@ -8,6 +8,60 @@ use std::ffi::CStr;
 use std::fmt::{self, Display, Formatter};
 
 const INTRATE: i32 = 12500;
+const RTLOUTBUFSZ: usize = 1024;
+
+enum ACARSState {
+    WSYN,
+    SYN2,
+    SOH1,
+    TXT,
+    CRC1,
+    CRC2,
+    END,
+}
+
+struct Channel {
+    channel_number: i32,
+    freq: i32,
+    wf: Vec<num::Complex<f32>>,
+    dm_buffer: Vec<f32>,
+    MskPhi: i32,
+    MskDf: i32,
+    MskClk: f32,
+    MskLvlSum: f32,
+    MskBitCount: i32,
+    MskS: u32,
+    idx: u32,
+    inb: num::Complex<f32>,
+
+    outbits: Vec<u8>, // orignial was unsigned char.....
+    nbits: i32,
+    acars_state: ACARSState,
+}
+
+impl Channel {
+    pub fn new(channel_number: i32, freq: i32, wf: Vec<num::Complex<f32>>) -> Self {
+        Self {
+            channel_number,
+            freq,
+            wf,
+            dm_buffer: vec![0.0; RTLOUTBUFSZ],
+            MskPhi: 0,
+            MskDf: 0,
+            MskClk: 0.0,
+            MskLvlSum: 0.0,
+            MskBitCount: 0,
+            MskS: 0,
+            idx: 0,
+            inb: num::Complex::new(0.0, 0.0),
+            outbits: Vec::new(),
+            nbits: 0,
+            acars_state: ACARSState::WSYN,
+        }
+    }
+
+    pub fn demodMSK(len: u32) {}
+}
 
 pub struct RtlSdr {
     ctl: Option<Controller>,
@@ -18,7 +72,8 @@ pub struct RtlSdr {
     gain: i32,
     bias_tee: bool,
     rtl_mult: i32,
-    frequencies: Vec<i32>,
+    frequencies: Vec<f32>,
+    channel: Vec<Channel>,
 }
 
 impl RtlSdr {
@@ -28,9 +83,10 @@ impl RtlSdr {
         gain: i32,
         bias_tee: bool,
         rtl_mult: i32,
-        frequencies: Vec<i32>,
+        mut frequencies: Vec<f32>,
     ) -> RtlSdr {
-        frequencies.clone().sort();
+        frequencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        debug!("{} Frequencies: {:?}", serial, frequencies);
         Self {
             ctl: None,
             reader: None,
@@ -41,6 +97,7 @@ impl RtlSdr {
             bias_tee,
             rtl_mult,
             frequencies,
+            channel: vec![],
         }
     }
 
@@ -109,31 +166,61 @@ impl RtlSdr {
                         self.serial
                     );
                 }
-
+                // TODO: verify < 2mhz spread in bandwidth
                 let rtl_in_rate = INTRATE * self.rtl_mult;
                 let mut channels: Vec<i32> = Vec::new();
 
                 for freq in self.frequencies.iter() {
-                    channels.push(freq + INTRATE / 2);
+                    // ((int)(1000000 * atof(argF) + INTRATE / 2) / INTRATE) * INTRATE;
+                    let channel = ((((1000000.0 * freq) as i32) + INTRATE / 2) / INTRATE) * INTRATE;
+                    channels.push(channel);
                 }
-                channels.sort();
 
                 // TODO: Make sure we're setting the center freq right....
 
-                if self.frequencies.len() > 1 {
-                    let center_freq =
-                        (self.frequencies[self.frequencies.len() - 1] + self.frequencies[0]) / 2;
+                let center_freq_actual;
+
+                if channels.len() > 1 {
+                    let center_freq = (channels[channels.len() - 1] + channels[0]) / 2;
                     info!(
                         "{} Setting center frequency to {}",
                         self.serial, center_freq
                     );
+                    center_freq_actual = center_freq;
                     ctl.set_center_freq(center_freq as u32).unwrap();
                 } else {
                     info!(
                         "{} Setting center frequency to {}",
-                        self.serial, self.frequencies[0]
+                        self.serial, channels[0]
                     );
-                    ctl.set_center_freq(self.frequencies[0] as u32).unwrap();
+                    center_freq_actual = channels[0];
+                    ctl.set_center_freq(channels[0] as u32).unwrap();
+                }
+
+                let mut channel_windows = Vec::new();
+                for channel in channels.iter() {
+                    // AMFreq = (ch->Fr - (float)Fc) / (float)(rtlInRate) * 2.0 * M_PI;
+                    let am_freq =
+                        ((channel - center_freq_actual) as f32) * 2.0 * std::f32::consts::PI
+                            / (rtl_in_rate as f32);
+
+                    let mut window: Vec<num::Complex<f32>> = vec![];
+                    for i in 0..self.rtl_mult {
+                        // ch->wf[ind]=cexpf(AMFreq*ind*-I)/rtlMult/127.5;
+                        // TODO: Did I fuck this up? Complex::i()?
+                        let window_value = (am_freq * i as f32 * -num::complex::Complex::i())
+                            / self.rtl_mult as f32
+                            / 127.5;
+                        window.push(window_value);
+                    }
+                    channel_windows.push(window);
+                }
+
+                for i in 0..self.frequencies.len() - 1 {
+                    let out_channel =
+                        Channel::new(i as i32, channels[i], channel_windows[i].clone());
+
+                    self.channel.push(out_channel);
                 }
 
                 info!("{} Setting sample rate to {}", self.serial, rtl_in_rate);
@@ -155,16 +242,40 @@ impl RtlSdr {
         }
     }
 
-    pub async fn read_samples(self) {
+    pub async fn read_samples(mut self) {
+        let buffer_len = RTLOUTBUFSZ as u32 * self.rtl_mult as u32 * 2;
+        let mut vb: Vec<num::Complex<f32>> = vec![num::complex::Complex::new(0.0, 0.0); 320];
         match self.reader {
             None => {
                 error!("{} Device not open", self.serial);
             }
             Some(mut reader) => {
                 reader
-                    .read_async(4, 32768, |bytes| {
-                        println!("i[0] = {}", bytes[0]);
-                        println!("q[0] = {}", bytes[1]);
+                    .read_async(4, buffer_len, |bytes| {
+                        let mut counter = 0;
+                        for m in 0..RTLOUTBUFSZ {
+                            for u in 0..self.rtl_mult - 1 {
+                                let r: f32;
+                                let g: f32;
+
+                                r = bytes[counter] as f32 - 127.37;
+                                counter += 1;
+                                g = bytes[counter] as f32 - 127.37;
+                                counter += 1;
+
+                                vb[u as usize] = r + g * num::complex::Complex::i();
+                            }
+
+                            for channel_index in 0..self.channel.len() - 1 {
+                                let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
+                                for ind in 0..self.rtl_mult - 1 {
+                                    d += vb[ind as usize]
+                                        * self.channel[channel_index].wf[ind as usize];
+                                }
+
+                                self.channel[channel_index].dm_buffer[m] = d.norm();
+                            }
+                        }
                     })
                     .unwrap();
             }
@@ -252,6 +363,9 @@ pub fn devices() -> impl Iterator<Item = DeviceAttributes> {
     }
 
     info!("Found {} RTL-SDR devices", devices.len());
+    for device in devices.iter() {
+        debug!("{}", device);
+    }
 
     devices.into_iter()
 }

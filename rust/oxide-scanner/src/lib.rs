@@ -13,6 +13,8 @@ impl OxideScanner {
     }
 
     pub async fn run(mut self) {
+        // TODO: Don't attempt to start SDRs that fail in set up
+        // TODO: Exit immediately if no SDRs are present
         for sdr in self.sdrs.iter_mut() {
             info!("{} Opening SDR", sdr.get_serial());
             sdr.open_sdr();

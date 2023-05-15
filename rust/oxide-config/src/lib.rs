@@ -98,7 +98,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr1serial"
     )]
-    pub sdr1freqs: Option<Vec<i32>>,
+    pub sdr1freqs: Option<Vec<f32>>,
     #[clap(
         long,
         env = "OXIDE_SDR1DECODING_TYPE",
@@ -163,7 +163,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr2serial"
     )]
-    pub sdr2freqs: Option<Vec<i32>>,
+    pub sdr2freqs: Option<Vec<f32>>,
     #[clap(
         long,
         env = "OXIDE_SDR2DECODING_TYPE",
@@ -228,7 +228,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr3serial"
     )]
-    pub sdr3freqs: Option<Vec<i32>>,
+    pub sdr3freqs: Option<Vec<f32>>,
     #[clap(
         long,
         env = "OXIDE_SDR3DECODING_TYPE",
@@ -293,7 +293,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr4serial"
     )]
-    pub sdr4freqs: Option<Vec<i32>>,
+    pub sdr4freqs: Option<Vec<f32>>,
     #[clap(
         long,
         env = "OXIDE_SDR4DECODING_TYPE",
@@ -358,7 +358,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr5serial"
     )]
-    pub sdr5freqs: Option<Vec<i32>>,
+    pub sdr5freqs: Option<Vec<f32>>,
     #[clap(
         long,
         env = "OXIDE_SDR5DECODING_TYPE",
@@ -423,7 +423,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr6serial"
     )]
-    pub sdr6freqs: Option<Vec<i32>>,
+    pub sdr6freqs: Option<Vec<f32>>,
     #[clap(
         long,
         env = "OXIDE_SDR6DECODING_TYPE",
@@ -488,7 +488,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr7serial"
     )]
-    pub sdr7freqs: Option<Vec<i32>>,
+    pub sdr7freqs: Option<Vec<f32>>,
     #[clap(
         long,
         env = "OXIDE_SDR7DECODING_TYPE",
@@ -553,7 +553,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr8serial"
     )]
-    pub sdr8freqs: Option<Vec<i32>>,
+    pub sdr8freqs: Option<Vec<f32>>,
     #[clap(
         long,
         env = "OXIDE_SDR8DECODING_TYPE",
@@ -575,14 +575,14 @@ custom_error! { OxideInputError
     FrequencyOutsideOfAirbandError { freq: String } = "Frequency {freq} is outside of the airband. Should be between 108 and 137 MHz",
 }
 
-fn validate_freq(freqs_string: &str) -> Result<i32, OxideInputError> {
+fn validate_freq(freqs_string: &str) -> Result<f32, OxideInputError> {
     let freq = freqs_string.parse::<f32>()?;
     if !(108.0..=137.0).contains(&freq) {
         Err(OxideInputError::FrequencyOutsideOfAirbandError {
             freq: freq.to_string(),
         })
     } else {
-        Ok((freq * 1000000.0) as i32)
+        Ok(freq)
     }
 }
 
