@@ -606,40 +606,35 @@ impl RtlSdr {
     }
 
     pub async fn read_samples(mut self) {
-        let buffer_len = RTLOUTBUFSZ as u32 * self.rtl_mult as u32 * 2;
+        let buffer_len: u32 = RTLOUTBUFSZ as u32 * self.rtl_mult as u32 * 2;
         let mut vb: Vec<num::Complex<f32>> = vec![num::complex::Complex::new(0.0, 0.0); 320];
-        let mut counter = 0;
-        let mut r: f32 = 0.0;
-        let mut g: f32 = 0.0;
+        let mut counter: usize = 0;
 
         match self.reader {
             None => {
                 error!("{} Device not open", self.serial);
             }
+
             Some(mut reader) => {
                 reader
                     .read_async(4, buffer_len, |bytes| {
                         counter = 0;
-
                         for m in 0..RTLOUTBUFSZ {
-                            for u in 0..self.rtl_mult {
-                                r = bytes[counter] as f32 - 127.37;
-                                counter += 1;
-                                g = bytes[counter] as f32 - 127.37;
-                                counter += 1;
-
-                                vb[u as usize] = r + g * num::complex::Complex::i();
+                            for u in 0..self.rtl_mult as usize {
+                                vb[u] = (bytes[counter] as f32 - 127.37)
+                                    + (bytes[counter + 1] as f32 - 127.37)
+                                        * num::complex::Complex::i();
+                                counter += 2;
                             }
 
-                            for channel_index in 0..self.channel.len() {
+                            for channel in &mut self.channel {
                                 let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
 
-                                for ind in 0..self.rtl_mult {
-                                    d += vb[ind as usize]
-                                        * self.channel[channel_index].wf[ind as usize];
+                                for ind in 0..self.rtl_mult as usize {
+                                    d += vb[ind] * channel.wf[ind];
                                 }
 
-                                self.channel[channel_index].dm_buffer[m] = d.norm();
+                                channel.dm_buffer[m] = d.norm();
                             }
                         }
 
