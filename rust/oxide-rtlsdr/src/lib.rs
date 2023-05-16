@@ -7,6 +7,8 @@ use std::ffi::c_char;
 use std::ffi::CStr;
 use std::fmt::{self, Display, Formatter};
 use std::ops::Add;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 const INTRATE: i32 = 12500;
 const RTLOUTBUFSZ: usize = 1024;
@@ -15,6 +17,24 @@ const MFLTOVER: usize = 12;
 const FLENO: usize = FLEN as usize * MFLTOVER + 1;
 const PLLG: f32 = 38e-4;
 const PLLC: f32 = 0.52;
+const SYN: u8 = 0x16;
+const SOH: u8 = 0x01;
+const STX: u8 = 0x02;
+const ETX: u8 = 0x83;
+const ETB: u8 = 0x97;
+const DLE: u8 = 0x7f;
+const MAXPERR: i32 = 3;
+
+const NUMBITS: [u8; 256] = [
+    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
+];
 
 enum ACARSState {
     WSYN,
@@ -26,24 +46,93 @@ enum ACARSState {
     END,
 }
 
+// typedef struct mskblk_s {
+// 	struct mskblk_s *prev;
+// 	int chn;
+// 	struct timeval tv;
+// 	int len;
+// 	int err;
+// 	float lvl;
+// 	char txt[250];
+// 	unsigned char crc[2];
+// } msgblk_t;
+
+struct Mskblks {
+    chn: i32,
+    timeval: u64,
+    len: i32,
+    err: i32,
+    lvl: f32,
+    txt: [char; 250],
+    crc: [u8; 2],
+    prev: Option<Box<Mskblks>>,
+}
+
+impl Mskblks {
+    pub fn new() -> Self {
+        Self {
+            chn: 0,
+            timeval: 0,
+            len: 0,
+            err: 0,
+            lvl: 0.0,
+            txt: ['\0'; 250],
+            crc: [0; 2],
+            prev: None,
+        }
+    }
+
+    pub fn set_chn(&mut self, chn: i32) {
+        self.chn = chn;
+    }
+
+    pub fn set_timeval(&mut self, timeval: u64) {
+        self.timeval = timeval;
+    }
+
+    pub fn set_len(&mut self, len: i32) {
+        self.len = len;
+    }
+
+    pub fn set_err(&mut self, err: i32) {
+        self.err = err;
+    }
+
+    pub fn set_lvl(&mut self, lvl: f32) {
+        self.lvl = lvl;
+    }
+
+    pub fn set_txt(&mut self, txt: [char; 250]) {
+        self.txt = txt;
+    }
+
+    pub fn set_text_by_index(&mut self, index: usize, txt: char) {
+        self.txt[index] = txt;
+    }
+
+    pub fn set_crc(&mut self, crc: [u8; 2]) {
+        self.crc = crc;
+    }
+}
+
 struct Channel {
     channel_number: i32,
     freq: i32,
     wf: Vec<num::Complex<f32>>,
     dm_buffer: Vec<f32>,
-    MskPhi: f32,
-    MskDf: f32,
-    MskClk: f32,
-    MskLvlSum: f32,
-    MskBitCount: i32,
-    MskS: u32,
+    msk_phi: f32,
+    msk_df: f32,
+    msk_clk: f32,
+    msk_lvl_sum: f32,
+    msk_bit_count: i32,
+    msk_s: u32,
     idx: u32,
     inb: [num::Complex<f32>; FLEN as usize],
-
-    outbits: u32, // orignial was unsigned char.....
+    outbits: u8, // orignial was unsigned char.....
     nbits: i32,
     acars_state: ACARSState,
     h: [f32; FLENO],
+    blk: Mskblks,
 }
 
 impl Channel {
@@ -64,22 +153,23 @@ impl Channel {
             freq,
             wf,
             dm_buffer: vec![0.0; RTLOUTBUFSZ],
-            MskPhi: 0.0,
-            MskDf: 0.0,
-            MskClk: 0.0,
-            MskLvlSum: 0.0,
-            MskBitCount: 0,
-            MskS: 0,
+            msk_phi: 0.0,
+            msk_df: 0.0,
+            msk_clk: 0.0,
+            msk_lvl_sum: 0.0,
+            msk_bit_count: 0,
+            msk_s: 0,
             idx: 0,
             inb: [num::Complex::new(0.0, 0.0); FLEN as usize],
             outbits: 0,
             nbits: 8,
             acars_state: ACARSState::WSYN,
             h: h,
+            blk: Mskblks::new(),
         }
     }
 
-    pub fn demodMSK(&mut self, len: u32) {
+    pub fn demod_msk(&mut self, len: u32) {
         /* MSK demod */
 
         for n in 0..len - 1 {
@@ -89,28 +179,29 @@ impl Channel {
             let mut o: f32;
 
             /* VCO */
-            s = 1800.0 / INTRATE as f32 * 2.0 * std::f32::consts::PI + self.MskDf as f32;
-            self.MskPhi += s;
-            if self.MskPhi >= 2.0 * std::f32::consts::PI {
-                self.MskPhi -= 2.0 * std::f32::consts::PI
+            s = 1800.0 / INTRATE as f32 * 2.0 * std::f32::consts::PI + self.msk_df as f32;
+            self.msk_phi += s;
+            if self.msk_phi >= 2.0 * std::f32::consts::PI {
+                self.msk_phi -= 2.0 * std::f32::consts::PI
             };
 
             /* mixer */
             in_ = self.dm_buffer[n as usize];
-            self.inb[self.idx as usize] = in_ * num::Complex::exp(-self.MskPhi * num::Complex::i());
+            self.inb[self.idx as usize] =
+                in_ * num::Complex::exp(-self.msk_phi * num::Complex::i());
             self.idx = (self.idx + 1) % (FLEN as u32);
 
             /* bit clock */
-            self.MskClk += s;
-            if self.MskClk >= 3.0 * std::f32::consts::PI / 2.0 - s / 2.0 {
+            self.msk_clk += s;
+            if self.msk_clk >= 3.0 * std::f32::consts::PI / 2.0 - s / 2.0 {
                 let dphi: f32;
                 let vo: f32;
                 let lvl: f32;
 
-                self.MskClk -= 3.0 * std::f32::consts::PI / 2.0;
+                self.msk_clk -= 3.0 * std::f32::consts::PI / 2.0;
 
                 /* matched filter */
-                o = MFLTOVER as f32 * (self.MskClk / s + 0.5);
+                o = MFLTOVER as f32 * (self.msk_clk / s + 0.5);
                 if o > MFLTOVER as f32 {
                     o = MFLTOVER as f32
                 };
@@ -132,10 +223,10 @@ impl Channel {
                 /* normalize */
                 lvl = v.norm();
                 v /= lvl + 1e-8;
-                self.MskLvlSum += lvl * lvl / 4.0;
-                self.MskBitCount += 1;
+                self.msk_lvl_sum += lvl * lvl / 4.0;
+                self.msk_bit_count += 1;
 
-                if self.MskS & 1 != 0 {
+                if self.msk_s & 1 != 0 {
                     vo = v.im;
                     if vo >= 0.0 {
                         dphi = -v.re;
@@ -150,17 +241,23 @@ impl Channel {
                         dphi = -v.im;
                     };
                 }
-                if self.MskS & 2 != 0 {
+                if self.msk_s & 2 != 0 {
                     self.put_bit(-vo);
                 } else {
                     self.put_bit(vo);
                 }
-                self.MskS += 1;
+                self.msk_s += 1;
 
                 /* PLL filter */
-                self.MskDf = PLLC * self.MskDf + (1.0 - PLLC) * PLLG * dphi;
+                self.msk_df = PLLC * self.msk_df + (1.0 - PLLC) * PLLG * dphi;
             }
         }
+    }
+
+    fn reset_acars(&mut self) {
+        self.acars_state = ACARSState::WSYN;
+        self.nbits = 8;
+        self.nbits = 0;
     }
 
     fn put_bit(&mut self, bit: f32) {
@@ -172,8 +269,135 @@ impl Channel {
         self.nbits -= 1;
         if self.nbits <= 0 {
             // DECODE ACARS!
+            self.decode_acars();
             self.nbits = 8;
         }
+    }
+
+    fn decode_acars(&mut self) {
+        match self.acars_state {
+            ACARSState::WSYN => {
+                if self.outbits == SYN {
+                    self.acars_state = ACARSState::SYN2;
+                    self.nbits = 8;
+                    return;
+                }
+                // NOTE: This is supposed to be a bitwise NOT
+                if self.outbits == !SYN {
+                    self.msk_s ^= 2;
+                    self.acars_state = ACARSState::SYN2;
+                    self.nbits = 8;
+                    return;
+                }
+                self.nbits = 1;
+            }
+
+            ACARSState::SYN2 => {
+                if self.outbits == SYN {
+                    self.acars_state = ACARSState::SOH1;
+                    self.nbits = 8;
+                    return;
+                }
+                // NOTE: This is supposed to be a bitwise NOT
+                if self.outbits == !SYN {
+                    self.msk_s ^= 2;
+                    self.nbits = 8;
+                    return;
+                }
+                self.reset_acars();
+                return;
+            }
+            ACARSState::SOH1 => {
+                if self.outbits == SOH {
+                    self.blk = Mskblks::new();
+
+                    self.blk.set_chn(self.channel_number);
+                    self.blk.set_timeval(
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs(),
+                    );
+                    self.blk.set_len(0);
+                    self.blk.set_err(0);
+
+                    self.acars_state = ACARSState::TXT;
+                    self.nbits = 8;
+                    self.msk_lvl_sum = 0.0;
+                    self.msk_bit_count = 0;
+                    return;
+                }
+                self.reset_acars();
+                return;
+            }
+            ACARSState::TXT => {
+                self.blk
+                    .set_text_by_index(self.blk.len as usize, self.outbits as char);
+                self.blk.len += 1;
+
+                if (NUMBITS[self.outbits as usize] & 1) == 0 {
+                    self.blk.err += 1;
+
+                    if self.blk.err > MAXPERR + 1 {
+                        self.reset_acars();
+                        return;
+                    }
+                }
+                if self.outbits == ETX || self.outbits == ETB {
+                    self.acars_state = ACARSState::CRC1;
+                    self.nbits = 8;
+                    return;
+                }
+                if self.blk.len > 20 && self.outbits == DLE {
+                    self.blk.len -= 3;
+                    self.blk.crc[0] = self.blk.txt[self.blk.len as usize] as u8;
+                    self.blk.crc[1] = self.blk.txt[self.blk.len as usize + 1] as u8;
+                    self.acars_state = ACARSState::CRC2;
+                    self.put_msg_label();
+                }
+                if self.blk.len > 240 {
+                    self.reset_acars();
+                    return;
+                }
+                self.nbits = 8;
+                return;
+            }
+            ACARSState::CRC1 => {
+                self.blk.crc[0] = self.outbits as u8;
+                self.acars_state = ACARSState::CRC2;
+                self.nbits = 8;
+                return;
+            }
+
+            ACARSState::CRC2 => {
+                self.blk.crc[1] = self.outbits as u8;
+                self.put_msg_label();
+
+                return;
+            }
+            ACARSState::END => {
+                self.reset_acars();
+                self.nbits = 8;
+                return;
+            }
+        }
+    }
+
+    fn put_msg_label(&mut self) {
+        self.blk.lvl = 10.0 * (self.msk_lvl_sum / self.msk_bit_count as f32).log10();
+
+        self.blk.prev = None;
+        // THis is for message queueing, I think.
+        // if (blkq_s)
+        //     blkq_s->prev = Some(self.blk);
+        // blkq_s = ch->blk;
+        // if (blkq_e == NULL)
+        //     blkq_e = blkq_s;
+
+        info!("A message?");
+        self.blk = Mskblks::new();
+        self.acars_state = ACARSState::END;
+        self.nbits = 8;
     }
 }
 
@@ -392,7 +616,7 @@ impl RtlSdr {
                         }
 
                         for channel_index in 0..self.channel.len() - 1 {
-                            self.channel[channel_index].demodMSK(RTLOUTBUFSZ as u32);
+                            self.channel[channel_index].demod_msk(RTLOUTBUFSZ as u32);
                         }
                     })
                     .unwrap();
