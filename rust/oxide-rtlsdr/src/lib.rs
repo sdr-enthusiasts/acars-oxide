@@ -83,6 +83,17 @@ impl Mskblks {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.chn = 0;
+        self.timeval = 0;
+        self.len = 0;
+        self.err = 0;
+        self.lvl = 0.0;
+        self.txt = ['\0'; 250];
+        self.crc = [0; 2];
+        self.prev = None;
+    }
+
     pub fn set_chn(&mut self, chn: i32) {
         self.chn = chn;
     }
@@ -317,7 +328,7 @@ impl Channel {
                     self.outbits == SOH,
                 );
                 if self.outbits == SOH {
-                    self.blk = Mskblks::new();
+                    self.blk.reset();
 
                     self.blk.set_chn(self.channel_number);
                     self.blk.set_timeval(
@@ -407,7 +418,7 @@ impl Channel {
         //     blkq_e = blkq_s;
 
         info!("A message?");
-        self.blk = Mskblks::new();
+        self.blk.reset();
         self.acars_state = ACARSState::END;
         self.nbits = 8;
     }
@@ -565,7 +576,6 @@ impl RtlSdr {
                             / 127.5;
                         window.push(window_value);
                     }
-                    info!("{:?}", self.rtl_mult);
                     channel_windows.push(window);
                 }
 
@@ -598,6 +608,10 @@ impl RtlSdr {
     pub async fn read_samples(mut self) {
         let buffer_len = RTLOUTBUFSZ as u32 * self.rtl_mult as u32 * 2;
         let mut vb: Vec<num::Complex<f32>> = vec![num::complex::Complex::new(0.0, 0.0); 320];
+        let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
+        let mut counter = 0;
+        let mut r: f32 = 0.0;
+        let mut g: f32 = 0.0;
         match self.reader {
             None => {
                 error!("{} Device not open", self.serial);
@@ -605,12 +619,10 @@ impl RtlSdr {
             Some(mut reader) => {
                 reader
                     .read_async(4, buffer_len, |bytes| {
-                        let mut counter = 0;
+                        counter = 0;
+
                         for m in 0..RTLOUTBUFSZ {
                             for u in 0..self.rtl_mult {
-                                let r: f32;
-                                let g: f32;
-
                                 r = bytes[counter] as f32 - 127.37;
                                 counter += 1;
                                 g = bytes[counter] as f32 - 127.37;
@@ -620,7 +632,6 @@ impl RtlSdr {
                             }
 
                             for channel_index in 0..self.channel.len() {
-                                let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
                                 for ind in 0..self.rtl_mult {
                                     d += vb[ind as usize]
                                         * self.channel[channel_index].wf[ind as usize];

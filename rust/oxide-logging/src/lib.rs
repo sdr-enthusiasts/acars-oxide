@@ -7,6 +7,8 @@ use env_logger::Builder;
 use log::LevelFilter;
 use std::io::Write;
 
+// TODO: Colors?
+
 pub trait SetupLogging {
     fn set_logging_level(self) -> LevelFilter;
     fn enable_logging(&self);
