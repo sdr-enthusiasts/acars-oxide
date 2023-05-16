@@ -36,6 +36,7 @@ const NUMBITS: [u8; 256] = [
     3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
 ];
 
+#[derive(Debug)]
 enum ACARSState {
     WSYN,
     SYN2,
@@ -138,7 +139,7 @@ struct Channel {
 impl Channel {
     pub fn new(channel_number: i32, freq: i32, wf: Vec<num::Complex<f32>>) -> Self {
         let mut h: [f32; FLENO] = [0.0; FLENO];
-        for i in 0..FLENO - 1 {
+        for i in 0..FLENO {
             h[i] = f32::cos(
                 2.0 * std::f32::consts::PI * 600.0 / INTRATE as f32 / MFLTOVER as f32
                     * (i as f32 - (FLENO as f32 - 1.0) / 2.0),
@@ -172,7 +173,7 @@ impl Channel {
     pub fn demod_msk(&mut self, len: u32) {
         /* MSK demod */
 
-        for n in 0..len - 1 {
+        for n in 0..len {
             let in_: f32;
             let s: f32;
             let mut v: num::Complex<f32> = num::Complex::new(0.0, 0.0);
@@ -275,6 +276,7 @@ impl Channel {
     }
 
     fn decode_acars(&mut self) {
+        //info!("{:?}", self.acars_state);
         match self.acars_state {
             ACARSState::WSYN => {
                 if self.outbits == SYN {
@@ -293,6 +295,13 @@ impl Channel {
             }
 
             ACARSState::SYN2 => {
+                info!(
+                    "SYN2 {:x} {:x}, Same {:?} Same {:?}",
+                    self.outbits,
+                    SYN,
+                    self.outbits == SYN,
+                    self.outbits == !SYN
+                );
                 if self.outbits == SYN {
                     self.acars_state = ACARSState::SOH1;
                     self.nbits = 8;
@@ -308,6 +317,12 @@ impl Channel {
                 return;
             }
             ACARSState::SOH1 => {
+                info!(
+                    "SOH1 {:x} {:x}, Same {:?}",
+                    self.outbits,
+                    SOH,
+                    self.outbits == SOH,
+                );
                 if self.outbits == SOH {
                     self.blk = Mskblks::new();
 
@@ -516,10 +531,14 @@ impl RtlSdr {
 
                 // TODO: Make sure we're setting the center freq right....
 
-                let center_freq_actual;
+                let center_freq_actual: i32;
 
                 if channels.len() > 1 {
-                    let center_freq = (channels[channels.len() - 1] + channels[0]) / 2;
+                    let center_freq_as_float = ((self.frequencies[self.frequencies.len() - 1]
+                        + self.frequencies[0])
+                        / 2.0)
+                        .round();
+                    let center_freq = (center_freq_as_float * 1000000.0) as i32;
                     info!(
                         "{} Setting center frequency to {}",
                         self.serial, center_freq
@@ -541,20 +560,19 @@ impl RtlSdr {
                     let am_freq =
                         ((channel - center_freq_actual) as f32) * 2.0 * std::f32::consts::PI
                             / (rtl_in_rate as f32);
-
                     let mut window: Vec<num::Complex<f32>> = vec![];
                     for i in 0..self.rtl_mult {
                         // ch->wf[ind]=cexpf(AMFreq*ind*-I)/rtlMult/127.5;
-                        // TODO: Did I fuck this up? Complex::i()?
-                        let window_value = (am_freq * i as f32 * -num::complex::Complex::i())
+                        let window_value = (am_freq * i as f32 * -num::complex::Complex::i()).exp()
                             / self.rtl_mult as f32
                             / 127.5;
                         window.push(window_value);
                     }
+                    info!("{:?}", self.rtl_mult);
                     channel_windows.push(window);
                 }
 
-                for i in 0..self.frequencies.len() - 1 {
+                for i in 0..self.frequencies.len() {
                     let out_channel =
                         Channel::new(i as i32, channels[i], channel_windows[i].clone());
 
@@ -592,7 +610,7 @@ impl RtlSdr {
                     .read_async(4, buffer_len, |bytes| {
                         let mut counter = 0;
                         for m in 0..RTLOUTBUFSZ {
-                            for u in 0..self.rtl_mult - 1 {
+                            for u in 0..self.rtl_mult {
                                 let r: f32;
                                 let g: f32;
 
@@ -604,9 +622,9 @@ impl RtlSdr {
                                 vb[u as usize] = r + g * num::complex::Complex::i();
                             }
 
-                            for channel_index in 0..self.channel.len() - 1 {
+                            for channel_index in 0..self.channel.len() {
                                 let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
-                                for ind in 0..self.rtl_mult - 1 {
+                                for ind in 0..self.rtl_mult {
                                     d += vb[ind as usize]
                                         * self.channel[channel_index].wf[ind as usize];
                                 }
@@ -615,7 +633,7 @@ impl RtlSdr {
                             }
                         }
 
-                        for channel_index in 0..self.channel.len() - 1 {
+                        for channel_index in 0..self.channel.len() {
                             self.channel[channel_index].demod_msk(RTLOUTBUFSZ as u32);
                         }
                     })
