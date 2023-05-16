@@ -608,10 +608,10 @@ impl RtlSdr {
     pub async fn read_samples(mut self) {
         let buffer_len = RTLOUTBUFSZ as u32 * self.rtl_mult as u32 * 2;
         let mut vb: Vec<num::Complex<f32>> = vec![num::complex::Complex::new(0.0, 0.0); 320];
-        let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
         let mut counter = 0;
         let mut r: f32 = 0.0;
         let mut g: f32 = 0.0;
+
         match self.reader {
             None => {
                 error!("{} Device not open", self.serial);
@@ -632,6 +632,8 @@ impl RtlSdr {
                             }
 
                             for channel_index in 0..self.channel.len() {
+                                let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
+
                                 for ind in 0..self.rtl_mult {
                                     d += vb[ind as usize]
                                         * self.channel[channel_index].wf[ind as usize];
