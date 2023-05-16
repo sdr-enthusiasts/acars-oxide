@@ -295,13 +295,6 @@ impl Channel {
             }
 
             ACARSState::SYN2 => {
-                info!(
-                    "SYN2 {:x} {:x}, Same {:?} Same {:?}",
-                    self.outbits,
-                    SYN,
-                    self.outbits == SYN,
-                    self.outbits == !SYN
-                );
                 if self.outbits == SYN {
                     self.acars_state = ACARSState::SOH1;
                     self.nbits = 8;
@@ -346,6 +339,7 @@ impl Channel {
                 return;
             }
             ACARSState::TXT => {
+                info!("TXT!");
                 self.blk
                     .set_text_by_index(self.blk.len as usize, self.outbits as char);
                 self.blk.len += 1;
@@ -378,6 +372,7 @@ impl Channel {
                 return;
             }
             ACARSState::CRC1 => {
+                info!("CRC1");
                 self.blk.crc[0] = self.outbits as u8;
                 self.acars_state = ACARSState::CRC2;
                 self.nbits = 8;
@@ -385,12 +380,14 @@ impl Channel {
             }
 
             ACARSState::CRC2 => {
+                info!("CRC2");
                 self.blk.crc[1] = self.outbits as u8;
                 self.put_msg_label();
 
                 return;
             }
             ACARSState::END => {
+                info!("END");
                 self.reset_acars();
                 self.nbits = 8;
                 return;
