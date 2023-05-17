@@ -131,7 +131,7 @@ struct Channel {
     channel_number: i32,
     freq: i32,
     wf: Vec<num::Complex<f32>>,
-    dm_buffer: [f32; RTLOUTBUFSZ as usize],
+    dm_buffer: [f32; RTLOUTBUFSZ],
     msk_phi: f32,
     msk_df: f32,
     msk_clk: f32,
@@ -176,7 +176,7 @@ impl Channel {
             outbits: 0,
             nbits: 8,
             acars_state: ACARSState::WSYN,
-            h: h,
+            h,
             blk: Mskblks::new(),
         }
     }
@@ -184,21 +184,20 @@ impl Channel {
     pub fn demod_msk(&mut self, len: u32) {
         /* MSK demod */
 
-        for n in 0..len {
-            let in_: f32;
-            let s: f32;
+        for n in 0..len as usize {
+            let in_: f32 = self.dm_buffer[n];
+            let s: f32 = 1800.0 / INTRATE as f32 * 2.0 * std::f32::consts::PI + self.msk_df;
             let mut v: num::Complex<f32> = num::Complex::new(0.0, 0.0);
             let mut o: f32;
 
             /* VCO */
-            s = 1800.0 / INTRATE as f32 * 2.0 * std::f32::consts::PI + self.msk_df as f32;
             self.msk_phi += s;
             if self.msk_phi >= 2.0 * std::f32::consts::PI {
                 self.msk_phi -= 2.0 * std::f32::consts::PI
             };
 
             /* mixer */
-            in_ = self.dm_buffer[n as usize];
+
             self.inb[self.idx as usize] =
                 in_ * num::Complex::exp(-self.msk_phi * num::Complex::i());
             self.idx = (self.idx + 1) % (FLEN as u32);
@@ -208,7 +207,6 @@ impl Channel {
             if self.msk_clk >= 3.0 * std::f32::consts::PI / 2.0 - s / 2.0 {
                 let dphi: f32;
                 let vo: f32;
-                let lvl: f32;
 
                 self.msk_clk -= 3.0 * std::f32::consts::PI / 2.0;
 
@@ -233,7 +231,7 @@ impl Channel {
                 }
 
                 /* normalize */
-                lvl = v.norm();
+                let lvl: f32 = v.norm();
                 v /= lvl + 1e-8;
                 self.msk_lvl_sum += lvl * lvl / 4.0;
                 self.msk_bit_count += 1;
@@ -318,7 +316,6 @@ impl Channel {
                     return;
                 }
                 self.reset_acars();
-                return;
             }
             ACARSState::SOH1 => {
                 info!(
@@ -347,7 +344,6 @@ impl Channel {
                     return;
                 }
                 self.reset_acars();
-                return;
             }
             ACARSState::TXT => {
                 info!("TXT!");
@@ -380,28 +376,23 @@ impl Channel {
                     return;
                 }
                 self.nbits = 8;
-                return;
             }
             ACARSState::CRC1 => {
                 info!("CRC1");
-                self.blk.crc[0] = self.outbits as u8;
+                self.blk.crc[0] = self.outbits;
                 self.acars_state = ACARSState::CRC2;
                 self.nbits = 8;
-                return;
             }
 
             ACARSState::CRC2 => {
                 info!("CRC2");
-                self.blk.crc[1] = self.outbits as u8;
+                self.blk.crc[1] = self.outbits;
                 self.put_msg_label();
-
-                return;
             }
             ACARSState::END => {
                 info!("END");
                 self.reset_acars();
                 self.nbits = 8;
-                return;
             }
         }
     }

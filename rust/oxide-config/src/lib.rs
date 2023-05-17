@@ -566,19 +566,19 @@ pub struct OxideInput {
 }
 
 custom_error! { OxideInputError
-    ParseFloatError { source: ParseFloatError } = "Error parsing float",
-    ParseIntError { source: ParseIntError } = "Error parsing int",
-    GainRangeError { input: f32, min: f32, max: f32 } = "Gain {input} out of range. Should be between {min} and {max}",
-    MultError { input: i32 } = "Mult {input} out of range. Should be 160 or 192.",
-    DecodingTypeError { input: String } = "Decoding type {input} is not supported. Please use one of the following: VDLM2, ACARS",
-    FrequencyMinMaxRangeError { max_freq: String, min_freq: String, range: String } = "Range between {min_freq} and {max_freq} is {range} MHz. Should be less than or equal to 2Mhz",
-    FrequencyOutsideOfAirbandError { freq: String } = "Frequency {freq} is outside of the airband. Should be between 108 and 137 MHz",
+    ParseFloat { source: ParseFloatError } = "Error parsing float",
+    ParseInt { source: ParseIntError } = "Error parsing int",
+    GainRange { input: f32, min: f32, max: f32 } = "Gain {input} out of range. Should be between {min} and {max}",
+    Mult { input: i32 } = "Mult {input} out of range. Should be 160 or 192.",
+    DecodingType { input: String } = "Decoding type {input} is not supported. Please use one of the following: VDLM2, ACARS",
+    FrequencyMinMaxRange { max_freq: String, min_freq: String, range: String } = "Range between {min_freq} and {max_freq} is {range} MHz. Should be less than or equal to 2Mhz",
+    FrequencyOutsideOfAirband { freq: String } = "Frequency {freq} is outside of the airband. Should be between 108 and 137 MHz",
 }
 
 fn validate_freq(freqs_string: &str) -> Result<f32, OxideInputError> {
     let freq = freqs_string.parse::<f32>()?;
     if !(108.0..=137.0).contains(&freq) {
-        Err(OxideInputError::FrequencyOutsideOfAirbandError {
+        Err(OxideInputError::FrequencyOutsideOfAirband {
             freq: freq.to_string(),
         })
     } else {
@@ -589,14 +589,14 @@ fn validate_freq(freqs_string: &str) -> Result<f32, OxideInputError> {
 fn validate_mult(env: &str) -> Result<i32, OxideInputError> {
     let mult = env.parse::<i32>()?;
     if mult != 160 && mult != 192 {
-        return Err(OxideInputError::MultError { input: mult });
+        return Err(OxideInputError::Mult { input: mult });
     }
     Ok(mult)
 }
 
 fn validate_decoding_type(env: &str) -> Result<String, OxideInputError> {
     if env.to_uppercase() != "ACARS" && env.to_uppercase() != "VDLM2" {
-        return Err(OxideInputError::DecodingTypeError {
+        return Err(OxideInputError::DecodingType {
             input: env.to_string(),
         });
     }
@@ -606,7 +606,7 @@ fn validate_decoding_type(env: &str) -> Result<String, OxideInputError> {
 fn parse_sdr_gain(env: &str) -> Result<i32, OxideInputError> {
     let gain = env.parse::<f32>()?;
     if !(MIN_GAIN..=MAX_GAIN).contains(&gain) {
-        return Err(OxideInputError::GainRangeError {
+        return Err(OxideInputError::GainRange {
             input: gain,
             min: MIN_GAIN,
             max: MAX_GAIN,

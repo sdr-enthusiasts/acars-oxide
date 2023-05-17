@@ -5,7 +5,6 @@ use oxide_config::clap::Parser;
 use oxide_config::OxideInput;
 use oxide_logging::SetupLogging;
 use oxide_rtlsdr::RtlSdr;
-use oxide_scanner;
 use tokio::time::{sleep, Duration};
 
 #[tokio::main]

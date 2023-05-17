@@ -9,7 +9,7 @@ pub struct OxideScanner {
 
 impl OxideScanner {
     pub fn new(sdrs: Vec<RtlSdr>) -> OxideScanner {
-        OxideScanner { sdrs: sdrs }
+        OxideScanner { sdrs }
     }
 
     pub async fn run(mut self) {
