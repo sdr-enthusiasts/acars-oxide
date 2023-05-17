@@ -619,13 +619,14 @@ impl RtlSdr {
                 reader
                     .read_async(4, buffer_len, |bytes| {
                         counter = 0;
-                        for u in 0..self.rtl_mult as usize {
-                            vb[u] = (bytes[counter] as f32 - 127.37)
-                                + (bytes[counter + 1] as f32 - 127.37) * num::complex::Complex::i();
-                            counter += 2;
-                        }
-
                         for m in 0..RTLOUTBUFSZ {
+                            for u in 0..self.rtl_mult as usize {
+                                vb[u] = (bytes[counter] as f32 - 127.37)
+                                    + (bytes[counter + 1] as f32 - 127.37)
+                                        * num::complex::Complex::i();
+                                counter += 2;
+                            }
+
                             for channel in &mut self.channel {
                                 let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
 
