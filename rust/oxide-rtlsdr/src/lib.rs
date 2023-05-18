@@ -621,8 +621,10 @@ impl RtlSdr {
                             for channel in &mut self.channel {
                                 let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
 
-                                for ind in 0..self.rtl_mult as usize {
-                                    d += vb[ind] * channel.wf[ind];
+                                for (ind, vb_item) in
+                                    vb.iter().enumerate().take(self.rtl_mult as usize)
+                                {
+                                    d += vb_item * channel.wf[ind];
                                 }
 
                                 channel.dm_buffer[m] = d.norm();
