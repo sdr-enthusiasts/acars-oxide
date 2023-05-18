@@ -130,7 +130,8 @@ impl Mskblks {
 struct Channel {
     channel_number: i32,
     freq: i32,
-    wf: Vec<num::Complex<f32>>,
+    //wf: Vec<num::Complex<f32>>,
+    wf: [num::Complex<f32>; 192],
     dm_buffer: [f32; RTLOUTBUFSZ],
     msk_phi: f32,
     msk_df: f32,
@@ -148,7 +149,7 @@ struct Channel {
 }
 
 impl Channel {
-    pub fn new(channel_number: i32, freq: i32, wf: Vec<num::Complex<f32>>) -> Self {
+    pub fn new(channel_number: i32, freq: i32, wf: [num::Complex<f32>; 192]) -> Self {
         let mut h: [f32; FLENO] = [0.0; FLENO];
         for i in 0..FLENO {
             h[i] = f32::cos(
@@ -571,8 +572,13 @@ impl RtlSdr {
                 }
 
                 for i in 0..self.frequencies.len() {
-                    let out_channel =
-                        Channel::new(i as i32, channels[i], channel_windows[i].clone());
+                    // create an array out of the channel_window[i] vector
+                    let mut window_array: [num::Complex<f32>; 192] =
+                        [num::complex::Complex::new(0.0, 0.0); 192];
+                    for (ind, window_value) in channel_windows[i].iter().enumerate() {
+                        window_array[ind] = *window_value;
+                    }
+                    let out_channel = Channel::new(i as i32, channels[i], window_array);
 
                     self.channel.push(out_channel);
                 }
