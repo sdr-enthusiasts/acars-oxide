@@ -86,9 +86,6 @@ pub struct OxideInput {
         requires = "sdr1serial"
     )]
     pub sdr1mult: Option<i32>,
-    // TODO: Validate no duplicates
-    // TODO: Freq range is 2Mhz from top to bottom
-    // TODO: Validate that there is at least one freq. Wait....this may already be done because we're throwing an error if a freq is out of range
     #[clap(
         long,
         env = "OXIDE_SDR1FREQS",

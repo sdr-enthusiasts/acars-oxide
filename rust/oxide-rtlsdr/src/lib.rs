@@ -3,6 +3,8 @@ extern crate log;
 use rtlsdr_mt::{Controller, Reader};
 
 extern crate libc;
+
+use custom_error::custom_error;
 use std::ffi::c_char;
 use std::ffi::CStr;
 use std::fmt::{self, Display, Formatter};
@@ -36,6 +38,12 @@ const NUMBITS: [u8; 256] = [
     3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
 ];
 
+custom_error! {pub RTLSDRError
+    DeviceNotFound { sdr: String } = "Device {sdr} not found",
+    FrequencySpreadTooLarge { sdr: String } = "Frequency spread too large for device {sdr}. Must be less than 2mhz",
+    NoFrequencyProvided { sdr: String } = "No frequency provided for device {sdr}",
+}
+
 #[derive(Debug)]
 enum ACARSState {
     WSYN,
@@ -46,17 +54,6 @@ enum ACARSState {
     CRC2,
     END,
 }
-
-// typedef struct mskblk_s {
-// 	struct mskblk_s *prev;
-// 	int chn;
-// 	struct timeval tv;
-// 	int len;
-// 	int err;
-// 	float lvl;
-// 	char txt[250];
-// 	unsigned char crc[2];
-// } msgblk_t;
 
 struct Mskblks {
     chn: i32,
@@ -130,7 +127,6 @@ impl Mskblks {
 struct Channel {
     channel_number: i32,
     freq: i32,
-    //wf: Vec<num::Complex<f32>>,
     wf: [num::Complex<f32>; 192],
     dm_buffer: [f32; RTLOUTBUFSZ],
     msk_phi: f32,
@@ -216,9 +212,6 @@ impl Channel {
                 if o > MFLTOVER as f32 {
                     o = MFLTOVER as f32
                 };
-                // for (v = 0, j = 0; j < FLEN; j++,o+=MFLTOVER) {
-                // 	v += h[o]*ch->inb[(j+idx)%FLEN];
-                // }
 
                 let mut j = 0;
 
@@ -439,7 +432,7 @@ impl RtlSdr {
         mut frequencies: Vec<f32>,
     ) -> RtlSdr {
         frequencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        debug!("{} Frequencies: {:?}", serial, frequencies);
+
         Self {
             ctl: None,
             reader: None,
@@ -454,7 +447,7 @@ impl RtlSdr {
         }
     }
 
-    pub fn open_sdr(&mut self) {
+    pub fn open_sdr(&mut self) -> Result<(), RTLSDRError> {
         let mut device_index = None;
         for dev in devices() {
             if dev.serial() == self.serial {
@@ -463,7 +456,9 @@ impl RtlSdr {
         }
         match device_index {
             None => {
-                error!("{} Device not found", self.serial);
+                return Err(RTLSDRError::DeviceNotFound {
+                    sdr: self.serial.clone(),
+                });
             }
             Some(idx) => {
                 self.index = Some(idx);
@@ -472,6 +467,16 @@ impl RtlSdr {
                 let (mut ctl, reader) = rtlsdr_mt::open(self.index.unwrap()).unwrap();
 
                 self.reader = Some(reader);
+
+                // remove any duplicate frequencies
+                // I cannot imagine we would EVER see this, but just in case
+
+                self.frequencies.dedup();
+                if self.frequencies.len() == 0 {
+                    return Err(RTLSDRError::NoFrequencyProvided {
+                        sdr: self.serial.clone(),
+                    });
+                }
 
                 if self.gain <= 500 {
                     let mut gains = [0i32; 32];
@@ -519,17 +524,29 @@ impl RtlSdr {
                         self.serial
                     );
                 }
-                // TODO: verify < 2mhz spread in bandwidth
+                // Verify freq spread less than 2mhz. This is much less complex than acarsdec
+                // but I fail to see how this is not equivilant with a lot less bullshit
+
+                if self.frequencies.len() > 1 {
+                    if self.frequencies[self.frequencies.len() - 1] - self.frequencies[0] > 2.0 {
+                        return Err(RTLSDRError::FrequencySpreadTooLarge {
+                            sdr: self.serial.clone(),
+                        });
+                    }
+                }
+
                 let rtl_in_rate = INTRATE * self.rtl_mult;
                 let mut channels: Vec<i32> = Vec::new();
 
                 for freq in self.frequencies.iter() {
-                    // ((int)(1000000 * atof(argF) + INTRATE / 2) / INTRATE) * INTRATE;
                     let channel = ((((1000000.0 * freq) as i32) + INTRATE / 2) / INTRATE) * INTRATE;
                     channels.push(channel);
                 }
 
-                // TODO: Make sure we're setting the center freq right....
+                // Set the center frequency. Initial implementation took the highest and lowest values
+                // For the inputted frequency list and averaged them. In my mind, this would be the
+                // best way to set the center frequency. However, the original acarsdec code set the center
+                // using a different method. I'm not sure why, but I'm going to keep it the same for now.
 
                 let center_freq_actual: i32;
 
@@ -588,7 +605,9 @@ impl RtlSdr {
 
                 self.ctl = Some(ctl);
             }
-        }
+        };
+
+        Ok(())
     }
 
     pub fn close_sdr(self) {
