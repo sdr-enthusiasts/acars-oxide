@@ -150,25 +150,15 @@ struct Channel {
 impl Channel {
     pub fn new(channel_number: i32, freq: i32, wf: Vec<num::Complex<f32>>) -> Self {
         let mut h: [f32; FLENO] = [0.0; FLENO];
-        for (i, h_item) in h.iter_mut().enumerate().take(FLENO) {
-            *h_item = f32::cos(
+        for i in 0..FLENO {
+            h[i] = f32::cos(
                 2.0 * std::f32::consts::PI * 600.0 / INTRATE as f32 / MFLTOVER as f32
                     * (i as f32 - (FLENO as f32 - 1.0) / 2.0),
             );
-
-            if *h_item < 0.0 {
-                *h_item = 0.0;
+            if h[i] < 0.0 {
+                h[i] = 0.0;
             };
         }
-        // for i in 0..FLENO {
-        //     h[i] = f32::cos(
-        //         2.0 * std::f32::consts::PI * 600.0 / INTRATE as f32 / MFLTOVER as f32
-        //             * (i as f32 - (FLENO as f32 - 1.0) / 2.0),
-        //     );
-        //     if h[i] < 0.0 {
-        //         h[i] = 0.0;
-        //     };
-        // }
 
         Self {
             channel_number,
@@ -621,17 +611,12 @@ impl RtlSdr {
                     .read_async(4, buffer_len, |bytes| {
                         counter = 0;
                         for m in 0..RTLOUTBUFSZ {
-                            for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
-                                *vb_item = (bytes[counter] as f32 - 127.37)
+                            for u in 0..self.rtl_mult as usize {
+                                vb[u] = (bytes[counter] as f32 - 127.37)
                                     + (bytes[counter + 1] as f32 - 127.37)
                                         * num::complex::Complex::i();
+                                counter += 2;
                             }
-                            // for u in 0..self.rtl_mult as usize {
-                            //     vb[u] = (bytes[counter] as f32 - 127.37)
-                            //         + (bytes[counter + 1] as f32 - 127.37)
-                            //             * num::complex::Complex::i();
-                            //     counter += 2;
-                            // }
 
                             for channel in &mut self.channel {
                                 let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
