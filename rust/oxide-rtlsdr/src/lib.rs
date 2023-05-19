@@ -38,7 +38,7 @@ const NUMBITS: [u8; 256] = [
     3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
 ];
 
-const CRC: [u8; 256] = [
+const CRC: [u32; 256] = [
     0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf, 0x8c48, 0x9dc1, 0xaf5a, 0xbed3,
     0xca6c, 0xdbe5, 0xe97e, 0xf8f7, 0x1081, 0x0108, 0x3393, 0x221a, 0x56a5, 0x472c, 0x75b7, 0x643e,
     0x9cc9, 0x8d40, 0xbfdb, 0xae52, 0xdaed, 0xcb64, 0xf9ff, 0xe876, 0x2102, 0x308b, 0x0210, 0x1399,
@@ -424,6 +424,7 @@ impl Channel {
         self.blk.lvl = 10.0 * (self.msk_lvl_sum / self.msk_bit_count as f32).log10();
 
         self.blk.prev = None;
+        process_acars_message(&mut self.blk);
         // THis is for message queueing, I think.
         // if (blkq_s)
         //     blkq_s->prev = Some(self.blk);
@@ -435,100 +436,6 @@ impl Channel {
         self.blk.reset();
         self.acars_state = ACARSState::END;
         self.nbits = 8;
-    }
-
-    fn process_acars_message(&mut self, blk: &mut Mskblks) {
-        let mut pr: [u8; 3] = [0; 3];
-        // handle message
-        if blk.len() < 13 {
-            // too short
-            info!("Message too short");
-            return;
-        }
-
-        /* force STX/ETX */
-        blk.txt[12] &= ETX | STX;
-        blk.txt[12] |= ETX & STX;
-
-        /* parity check */
-        let mut pn: usize = 0;
-        for i in 0..blk.len as usize {
-            if (NUMBITS[blk.txt[i] as usize] & 1) == 0 {
-                if pn < MAXPERR {
-                    pr[pn] = i as u8;
-                }
-                pn += 1;
-            }
-            if (NUMBITS[blk.txt[i] as usize] & 1) == 0 {
-                if pn < MAXPERR {
-                    pr[pn] = i as u8;
-                }
-                pn += 1;
-            }
-        }
-        if pn > MAXPERR {
-            info!("Too many parity errors");
-            return;
-        }
-        if pn > 0 {
-            info!("Parity errors: {}", pn);
-        }
-        blk.err = pn;
-
-        /* crc check */
-        let mut crc: u8 = 0;
-        for i in 0..blk.len as usize {
-            crc = update_crc(crc, blk.txt[i]);
-        }
-
-        update_crc(crc, blk.crc[0]);
-        update_crc(crc, blk.crc[1]);
-        if crc != 0 {
-            error!("{} crc error\n", blk.chn + 1);
-        } else {
-            info!("CRC OK");
-        }
-
-        /* try to fix error */
-        // if(pn) {
-        //   if (fixprerr(blk, crc, pr, pn) == 0) {
-        // 	if (verbose)
-        // 		fprintf(stderr, "#%d not able to fix errors\n", blk->chn + 1);
-        // 	free(blk);
-        // 	continue;
-        //   }
-        // 	if (verbose)
-        // 		fprintf(stderr, "#%d errors fixed\n", blk->chn + 1);
-        // } else {
-
-        //   if (crc) {
-        // 	 if(fixdberr(blk, crc) == 0) {
-        // 		if (verbose)
-        // 			fprintf(stderr, "#%d not able to fix errors\n", blk->chn + 1);
-        // 		free(blk);
-        // 		continue;
-        //   	}
-        //   	if (verbose)
-        // 		fprintf(stderr, "#%d errors fixed\n", blk->chn + 1);
-        //   }
-        // }
-
-        // /* redo parity checking and removing */
-        // pn = 0;
-        // for (i = 0; i < blk->len; i++) {
-        // 	if ((numbits[(unsigned char)(blk->txt[i])] & 1) == 0) {
-        // 		pn++;
-        // 	}
-        // 	blk->txt[i] &= 0x7f;
-        // }
-        // if (pn) {
-        // 	fprintf(stderr, "#%d parity check problem\n",
-        // 		blk->chn + 1);
-        // 	free(blk);
-        // 	continue;
-        // }
-
-        // outputmsg(blk);
     }
 }
 
@@ -876,9 +783,103 @@ pub fn devices() -> impl Iterator<Item = DeviceAttributes> {
     devices.into_iter()
 }
 
-fn update_crc(crc: u8, c: u8) -> u8 {
+fn update_crc(crc: u32, c: u32) -> u32 {
     // #define update_crc(crc,c) crc= (crc>> 8)^crc_ccitt_table[(crc^(c))&0xff];
-    let mut crc: u8 = crc;
+    let mut crc: u32 = crc;
     crc = (crc >> 8) ^ CRC[((crc ^ c) & 0xff) as usize];
-    crc as u8
+    crc as u32
+}
+
+fn process_acars_message(blk: &mut Mskblks) {
+    let mut pr: [u8; 3] = [0; 3];
+    // handle message
+    if blk.len() < 13 {
+        // too short
+        info!("Message too short");
+        return;
+    }
+
+    /* force STX/ETX */
+    blk.txt[12] &= ETX | STX;
+    blk.txt[12] |= ETX & STX;
+
+    /* parity check */
+    let mut pn: usize = 0;
+    for i in 0..blk.len as usize {
+        if (NUMBITS[blk.txt[i] as usize] & 1) == 0 {
+            if pn < MAXPERR {
+                pr[pn] = i as u8;
+            }
+            pn += 1;
+        }
+        if (NUMBITS[blk.txt[i] as usize] & 1) == 0 {
+            if pn < MAXPERR {
+                pr[pn] = i as u8;
+            }
+            pn += 1;
+        }
+    }
+    if pn > MAXPERR {
+        info!("Too many parity errors");
+        return;
+    }
+    if pn > 0 {
+        info!("Parity errors: {}", pn);
+    }
+    blk.err = pn;
+
+    /* crc check */
+    let mut crc: u32 = 0;
+    for i in 0..blk.len as usize {
+        crc = update_crc(crc, blk.txt[i] as u32);
+    }
+
+    update_crc(crc, blk.crc[0] as u32);
+    update_crc(crc, blk.crc[1] as u32);
+    if crc != 0 {
+        error!("{} crc error\n", blk.chn + 1);
+    } else {
+        info!("CRC OK");
+    }
+
+    /* try to fix error */
+    // if(pn) {
+    //   if (fixprerr(blk, crc, pr, pn) == 0) {
+    // 	if (verbose)
+    // 		fprintf(stderr, "#%d not able to fix errors\n", blk->chn + 1);
+    // 	free(blk);
+    // 	continue;
+    //   }
+    // 	if (verbose)
+    // 		fprintf(stderr, "#%d errors fixed\n", blk->chn + 1);
+    // } else {
+
+    //   if (crc) {
+    // 	 if(fixdberr(blk, crc) == 0) {
+    // 		if (verbose)
+    // 			fprintf(stderr, "#%d not able to fix errors\n", blk->chn + 1);
+    // 		free(blk);
+    // 		continue;
+    //   	}
+    //   	if (verbose)
+    // 		fprintf(stderr, "#%d errors fixed\n", blk->chn + 1);
+    //   }
+    // }
+
+    // /* redo parity checking and removing */
+    // pn = 0;
+    // for (i = 0; i < blk->len; i++) {
+    // 	if ((numbits[(unsigned char)(blk->txt[i])] & 1) == 0) {
+    // 		pn++;
+    // 	}
+    // 	blk->txt[i] &= 0x7f;
+    // }
+    // if (pn) {
+    // 	fprintf(stderr, "#%d parity check problem\n",
+    // 		blk->chn + 1);
+    // 	free(blk);
+    // 	continue;
+    // }
+
+    // outputmsg(blk);
 }
