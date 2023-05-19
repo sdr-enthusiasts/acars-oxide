@@ -132,20 +132,8 @@ impl Mskblks {
         self.err = err;
     }
 
-    pub fn set_lvl(&mut self, lvl: f32) {
-        self.lvl = lvl;
-    }
-
-    pub fn set_txt(&mut self, txt: [u8; 250]) {
-        self.txt = txt;
-    }
-
     pub fn set_text_by_index(&mut self, index: usize, txt: u8) {
         self.txt[index] = txt;
-    }
-
-    pub fn set_crc(&mut self, crc: [u8; 2]) {
-        self.crc = crc;
     }
 
     pub fn len(&self) -> i32 {
@@ -834,8 +822,8 @@ fn process_acars_message(blk: &mut Mskblks) {
         crc = update_crc(crc, blk.txt[i] as u32);
     }
 
-    update_crc(crc, blk.crc[0] as u32);
-    update_crc(crc, blk.crc[1] as u32);
+    crc = update_crc(crc, blk.crc[0] as u32);
+    crc = update_crc(crc, blk.crc[1] as u32);
     if crc != 0 {
         error!("{} crc error\n", blk.chn + 1);
     } else {
