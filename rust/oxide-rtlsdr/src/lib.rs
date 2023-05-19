@@ -519,6 +519,7 @@ impl Channel {
                     self.msk_bit_count = 0;
                     return;
                 }
+                trace!("SOH1 ERROR");
                 self.reset_acars();
             }
             ACARSState::TXT => {
