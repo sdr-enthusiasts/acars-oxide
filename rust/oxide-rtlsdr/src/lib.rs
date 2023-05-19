@@ -450,8 +450,8 @@ impl Channel {
 
     fn reset_acars(&mut self) {
         self.acars_state = ACARSState::WSYN;
-        self.nbits = 8;
-        self.nbits = 0;
+        self.nbits = 1;
+        self.msk_df = 0.0;
     }
 
     fn put_bit(&mut self, bit: f32) {
