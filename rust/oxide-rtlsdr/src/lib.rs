@@ -259,6 +259,7 @@ struct Mskblks {
     pub txt: [u8; 250],
     pub crc: [u8; 2],
     prev: Option<Box<Mskblks>>,
+    pub init: bool,
 }
 
 impl Mskblks {
@@ -272,6 +273,7 @@ impl Mskblks {
             txt: [0; 250],
             crc: [0; 2],
             prev: None,
+            init: true,
         }
     }
 
@@ -284,6 +286,7 @@ impl Mskblks {
         self.txt = [0; 250];
         self.crc = [0; 2];
         self.prev = None;
+        self.init = true;
     }
 
     pub fn set_chn(&mut self, chn: i32) {
@@ -492,6 +495,7 @@ impl Channel {
                 }
                 // NOTE: This is supposed to be a bitwise NOT
                 if self.outbits == !SYN {
+                    trace!("NOT SYN");
                     self.msk_s ^= 2;
                     self.nbits = 8;
                     return;
@@ -501,7 +505,10 @@ impl Channel {
             ACARSState::SOH1 => {
                 trace!("SOH1");
                 if self.outbits == SOH {
-                    self.blk.reset();
+                    if self.blk.init {
+                        self.blk.reset();
+                        self.blk.init = false;
+                    }
 
                     self.blk.set_chn(self.channel_number);
                     self.blk.set_timeval(
