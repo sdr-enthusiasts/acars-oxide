@@ -353,7 +353,7 @@ impl Channel {
             wf,
             dm_buffer: [0.0; RTLOUTBUFSZ],
             msk_phi: 0.0,
-            msk_df: 0.0,
+            msk_df: 8.0,
             msk_clk: 0.0,
             msk_lvl_sum: 0.0,
             msk_bit_count: 0,
