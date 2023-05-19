@@ -485,7 +485,6 @@ impl Channel {
             }
 
             ACARSState::SYN2 => {
-                trace!("SYN2");
                 if self.outbits == SYN {
                     self.acars_state = ACARSState::SOH1;
                     self.nbits = 8;
