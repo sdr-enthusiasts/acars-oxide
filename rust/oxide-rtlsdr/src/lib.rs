@@ -528,9 +528,11 @@ impl Channel {
                 self.blk.len += 1;
 
                 if (NUMBITS[self.outbits as usize] & 1) == 0 {
+                    trace!("TXT ERROR");
                     self.blk.err += 1;
 
                     if self.blk.err > MAXPERR + 1 {
+                        trace!("TXT TOO MANY ERRORS");
                         self.reset_acars();
                         return;
                     }
@@ -577,7 +579,7 @@ impl Channel {
         self.blk.lvl = 10.0 * (self.msk_lvl_sum / self.msk_bit_count as f32).log10();
 
         self.blk.prev = None;
-        partity_and_crc_check(&mut self.blk);
+        parity_and_crc_check(&mut self.blk);
         // THis is for message queueing, I think.
         // if (blkq_s)
         //     blkq_s->prev = Some(self.blk);
@@ -1012,7 +1014,7 @@ fn fixprerr(
     }
 }
 
-fn partity_and_crc_check(blk: &mut Mskblks) {
+fn parity_and_crc_check(blk: &mut Mskblks) {
     let mut pr: [u8; 3] = [0; 3];
     // handle message
     if blk.len() < 13 {
@@ -1099,7 +1101,7 @@ fn partity_and_crc_check(blk: &mut Mskblks) {
         info!("Parity errors: {}", pn);
     }
 
-    trace!("Party and CRC check complete");
+    trace!("Parity and CRC check complete");
 
     // outputmsg(blk);
 }
