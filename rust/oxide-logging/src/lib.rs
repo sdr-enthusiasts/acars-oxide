@@ -46,7 +46,7 @@ impl SetupLogging for u8 {
                 //assert_eq!("00000110", format!("{:0>8}", "110"));
                 writeln!(
                     buf,
-                    "{} [{}] {}",
+                    "[{}][{}]{}",
                     level_style.value(format!("{: <5}", record.level())),
                     Local::now().format("%Y-%m-%dT%H:%M:%S"),
                     record.args()

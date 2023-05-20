@@ -465,7 +465,6 @@ impl ACARSDecoder {
     }
 
     fn decode_acars(&mut self) {
-        //info!("{:?}", self.acars_state);
         match self.acars_state {
             ACARSState::Wsyn => {
                 if self.outbits == SYN {
@@ -498,7 +497,10 @@ impl ACARSDecoder {
                 self.reset_acars();
             }
             ACARSState::Soh1 => {
-                trace!("SOH1");
+                trace!(
+                    "[{: <13}] SOH1",
+                    format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+                );
                 if self.outbits == SOH {
                     if self.blk.init {
                         self.blk.reset();
@@ -524,17 +526,26 @@ impl ACARSDecoder {
                 self.reset_acars();
             }
             ACARSState::Txt => {
-                trace!("TXT!");
+                trace!(
+                    "[{: <13}] TXT",
+                    format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+                );
                 self.blk
                     .set_text_by_index(self.blk.len as usize, self.outbits);
                 self.blk.len += 1;
 
                 if (NUMBITS[self.outbits as usize] & 1) == 0 {
-                    trace!("TXT ERROR");
+                    trace!(
+                        "[{: <13}] TXT ERROR",
+                        format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+                    );
                     self.blk.err += 1;
 
                     if self.blk.err > MAXPERR + 1 {
-                        trace!("TXT TOO MANY ERRORS");
+                        trace!(
+                            "[{: <13}] TXT TOO MANY ERRORS",
+                            format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+                        );
                         self.reset_acars();
                         return;
                     }
@@ -558,19 +569,28 @@ impl ACARSDecoder {
                 self.nbits = 8;
             }
             ACARSState::Crc1 => {
-                trace!("CRC1");
+                trace!(
+                    "[{: <13}] CRC1",
+                    format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+                );
                 self.blk.crc[0] = self.outbits;
                 self.acars_state = ACARSState::Crc2;
                 self.nbits = 8;
             }
 
             ACARSState::Crc2 => {
-                trace!("CRC2");
+                trace!(
+                    "[{: <13}] CRC2",
+                    format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+                );
                 self.blk.crc[1] = self.outbits;
                 self.put_msg_label();
             }
             ACARSState::End => {
-                trace!("END");
+                trace!(
+                    "[{: <13}] END",
+                    format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+                );
                 self.reset_acars();
                 self.nbits = 8;
             }
@@ -589,7 +609,6 @@ impl ACARSDecoder {
         // if (blkq_e == NULL)
         //     blkq_e = blkq_s;
 
-        info!("A message? {}", self.freq);
         self.blk.reset();
         self.acars_state = ACARSState::End;
         self.nbits = 8;
@@ -672,7 +691,10 @@ impl ACARSDecoder {
         // handle message
         if self.blk.len() < 13 {
             // too short
-            info!("Message too short");
+            info!(
+                "[{: <13}] Message too short",
+                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+            );
             return;
         }
 
@@ -697,11 +719,18 @@ impl ACARSDecoder {
             }
         }
         if pn > MAXPERR {
-            info!("Too many parity errors");
+            info!(
+                "[{: <13}] Too many parity errors",
+                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+            );
             return;
         }
         if pn > 0 {
-            info!("Parity errors: {}", pn);
+            info!(
+                "[{: <13}] Parity errors: {}",
+                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+                pn
+            );
         }
         self.blk.err = pn;
 
@@ -716,7 +745,10 @@ impl ACARSDecoder {
         if crc != 0 {
             error!("{} crc error", self.blk.chn + 1);
         } else {
-            trace!("CRC OK");
+            trace!(
+                "[{: <13}] CRC OK",
+                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+            );
         }
 
         /* try to fix error */
@@ -724,20 +756,36 @@ impl ACARSDecoder {
             match self.fixprerr(crc, &pr, 0, pn) {
                 Ok(_) => {}
                 Err(_) => {
-                    error!("{:#} not able to fix errors", self.blk.chn + 1);
+                    error!(
+                        "[{: <13}] {:#} not able to fix errors",
+                        format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+                        self.blk.chn + 1
+                    );
                     return;
                 }
             }
-            info!("{:#} errors fixed", self.blk.chn + 1);
+            info!(
+                "[{: <13}] {:#} errors fixed",
+                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+                self.blk.chn + 1
+            );
         } else if crc > 0 {
             match self.fixdberr(crc) {
                 Ok(_) => {}
                 Err(_) => {
-                    error!("{:#} not able to fix errors", self.blk.chn + 1);
+                    error!(
+                        "[{: <13}] {:#} not able to fix errors",
+                        format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+                        self.blk.chn + 1
+                    );
                     return;
                 }
             }
-            info!("{:#} errors fixed", self.blk.chn + 1);
+            info!(
+                "[{: <13}] {:#} errors fixed",
+                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+                self.blk.chn + 1
+            );
         }
 
         // /* redo parity checking and removing */
@@ -749,15 +797,25 @@ impl ACARSDecoder {
             self.blk.txt[i] &= 0x7f;
         }
         if pn > 0 {
-            info!("Parity errors: {}", pn);
+            info!(
+                "[{: <13}] Parity errors: {}",
+                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+                pn
+            );
         }
 
-        trace!("Parity and CRC check complete");
+        trace!(
+            "[{: <13}] Parity and CRC check complete",
+            format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+        );
 
         self.generate_output_message();
     }
 
     fn generate_output_message(&self) {
-        trace!("Generating output message. NOT IMPLEMENTED");
+        trace!(
+            "[{: <13}] Generating output message. NOT IMPLEMENTED",
+            format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+        );
     }
 }

@@ -90,7 +90,7 @@ impl RtlSdr {
             }
             Some(idx) => {
                 self.index = Some(idx);
-                info!("{} Using Found device at index {}", self.serial, idx);
+                info!("[{: <13}] Using Found device at index {}", self.serial, idx);
 
                 let (mut ctl, reader) = rtlsdr_mt::open(self.index.unwrap()).unwrap();
 
@@ -109,7 +109,7 @@ impl RtlSdr {
                 if self.gain <= 500 {
                     let mut gains = [0i32; 32];
                     ctl.tuner_gains(&mut gains);
-                    debug!("{} Using Gains: {:?}", self.serial, gains);
+                    debug!("[{: <13}] Using Gains: {:?}", self.serial, gains);
                     let mut close_gain = gains[0];
                     // loop through gains and see which value is closest to the desired gain
                     for gain_value in gains {
@@ -121,34 +121,37 @@ impl RtlSdr {
                         let err2 = i32::abs(self.gain - gain_value);
 
                         if err2 < err1 {
-                            trace!("{} Found closer gain: {}", self.serial, gain_value);
+                            trace!("[{: <13}] Found closer gain: {}", self.serial, gain_value);
                             close_gain = gain_value;
                         }
                     }
 
                     if self.gain != close_gain {
                         warn!(
-                            "{} Input gain {} was normalized to a SDR supported gain of {}. Gain is set to the normalized gain.",
+                            "[{: <13}] Input gain {} was normalized to a SDR supported gain of {}. Gain is set to the normalized gain.",
                             self.serial, self.gain, close_gain
                         );
                         self.gain = close_gain;
                     } else {
-                        info!("{} setting gain to {}", self.serial, self.gain);
+                        info!("[{: <13}] setting gain to {}", self.serial, self.gain);
                     }
 
                     ctl.disable_agc().unwrap();
                     ctl.set_tuner_gain(self.gain).unwrap();
                 } else {
-                    info!("{} Setting gain to Auto Gain Control (AGC)", self.serial);
+                    info!(
+                        "[{: <13}] Setting gain to Auto Gain Control (AGC)",
+                        self.serial
+                    );
                     ctl.enable_agc().unwrap();
                 }
 
-                info!("{} Setting PPM to {}", self.serial, self.ppm);
+                info!("[{: <13}] Setting PPM to {}", self.serial, self.ppm);
                 ctl.set_ppm(self.ppm).unwrap();
 
                 if self.bias_tee {
                     warn!(
-                        "{} BiasTee is not supported right now. Maybe soon...",
+                        "[{: <13}] BiasTee is not supported right now. Maybe soon...",
                         self.serial
                     );
                 }
@@ -187,14 +190,14 @@ impl RtlSdr {
                         .round();
                     let center_freq = (center_freq_as_float * 1000000.0) as i32;
                     info!(
-                        "{} Setting center frequency to {}",
+                        "[{: <13}] Setting center frequency to {}",
                         self.serial, center_freq
                     );
                     center_freq_actual = center_freq;
                     ctl.set_center_freq(center_freq as u32).unwrap();
                 } else {
                     info!(
-                        "{} Setting center frequency to {}",
+                        "[{: <13}] Setting center frequency to {}",
                         self.serial, channels[0]
                     );
                     center_freq_actual = channels[0];
@@ -230,7 +233,10 @@ impl RtlSdr {
                     self.channel.push(Box::new(out_channel));
                 }
 
-                info!("{} Setting sample rate to {}", self.serial, rtl_in_rate);
+                info!(
+                    "[{: <13}] Setting sample rate to {}",
+                    self.serial, rtl_in_rate
+                );
                 ctl.set_sample_rate(rtl_in_rate as u32).unwrap();
 
                 self.ctl = Some(ctl);
@@ -243,7 +249,7 @@ impl RtlSdr {
     pub fn close_sdr(self) {
         match self.ctl {
             None => {
-                error!("{} Device not open", self.serial);
+                error!("[{: <13}] Device not open", self.serial);
             }
             Some(mut ctl) => {
                 ctl.cancel_async_read();
@@ -259,7 +265,7 @@ impl RtlSdr {
 
         match self.reader {
             None => {
-                error!("{} Device not open", self.serial);
+                error!("[{: <13}] Device not open", self.serial);
             }
 
             Some(mut reader) => {
@@ -376,9 +382,9 @@ pub fn devices() -> impl Iterator<Item = DeviceAttributes> {
         ));
     }
 
-    info!("Found {} RTL-SDR devices", devices.len());
+    debug!("[DEVICE INIT  ] Found {} RTL-SDR devices", devices.len());
     for device in devices.iter() {
-        debug!("{}", device);
+        debug!("[DEVICE INIT  ] {}", device);
     }
 
     devices.into_iter()
