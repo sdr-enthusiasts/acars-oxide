@@ -8,6 +8,7 @@ use log::LevelFilter;
 use std::io::Write;
 
 // TODO: Colors?
+// TODO: Wrap modules in their own labels
 
 pub trait SetupLogging {
     fn set_logging_level(self) -> LevelFilter;
