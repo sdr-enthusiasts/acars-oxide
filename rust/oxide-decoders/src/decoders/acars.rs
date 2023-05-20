@@ -582,7 +582,7 @@ impl ACARSDecoder {
         self.blk.lvl = 10.0 * (self.msk_lvl_sum / self.msk_bit_count as f32).log10();
 
         self.blk.prev = None;
-        parity_and_crc_check(&mut self.blk);
+        self.parity_and_crc_check();
         // THis is for message queueing, I think.
         // if (blkq_s)
         //     blkq_s->prev = Some(self.blk);
@@ -595,172 +595,177 @@ impl ACARSDecoder {
         self.acars_state = ACARSState::END;
         self.nbits = 8;
     }
-}
 
-fn update_crc(crc: u32, c: u32) -> u32 {
-    // #define update_crc(crc,c) crc= (crc>> 8)^crc_ccitt_table[(crc^(c))&0xff];
-    let mut crc: u32 = crc;
-    crc = (crc >> 8) ^ CRC[((crc ^ c) & 0xff) as usize];
-    crc as u32
-}
-
-fn fixdberr(blk: &mut Mskblks, crc: u32) -> Result<(), ACARSDecodingError> {
-    /* test remaining error in crc */
-    for i in 0..16 as usize {
-        if SYNDROM[i] == crc {
-            return Err(ACARSDecodingError::FixDB);
-        }
+    fn update_crc(&self, crc: u32, c: u32) -> u32 {
+        // #define update_crc(crc,c) crc= (crc>> 8)^crc_ccitt_table[(crc^(c))&0xff];
+        let mut crc: u32 = crc;
+        crc = (crc >> 8) ^ CRC[((crc ^ c) & 0xff) as usize];
+        crc as u32
     }
 
-    /* test double error in bytes */
-    for k in 0..blk.len as usize {
-        let bo: usize = (8 * (blk.len as usize - k + 1)) as usize;
-        for i in 0..8 as usize {
-            for j in 0..8 as usize {
-                if i == j {
-                    continue;
-                };
-                if (crc ^ SYNDROM[i + bo] ^ SYNDROM[j + bo]) == 0 {
-                    blk.txt[k] ^= 1 << i;
-                    blk.txt[k] ^= 1 << j;
-                    return Err(ACARSDecodingError::FixDB);
-                }
-            }
-        }
-    }
-    return Ok(());
-}
-
-fn fixprerr(
-    blk: &mut Mskblks,
-    crc: u32,
-    pr: &[u8; 3],
-    pr_index: usize,
-    pn: usize,
-) -> Result<(), ACARSDecodingError> {
-    if pn > 0 {
-        /* try to recursievly fix parity error */
-        for i in 0..8 as usize {
-            let test = crc ^ SYNDROM[i + 8 * (blk.len as usize - pr[pr_index] as usize + 1)];
-            match fixprerr(blk, test, pr, pr_index + 1, pn - 1) {
-                Ok(_) => {
-                    blk.txt[pr_index] ^= 1 << i;
-                    return Ok(());
-                }
-                Err(_) => {
-                    return Err(ACARSDecodingError::FixPR);
-                }
-            }
-            // {
-            //     blk.txt[*pr] ^= (1 << i);
-            //     return Ok(());
-            // }
-        }
-        return Err(ACARSDecodingError::FixPR);
-    } else {
-        /* end of recursion : no more parity error */
-        if crc == 0 {
-            return Ok(());
-        };
-
-        /* test remainding error in crc */
+    fn fixdberr(&mut self, crc: u32) -> Result<(), ACARSDecodingError> {
+        /* test remaining error in crc */
         for i in 0..16 as usize {
             if SYNDROM[i] == crc {
+                return Err(ACARSDecodingError::FixDB);
+            }
+        }
+
+        /* test double error in bytes */
+        for k in 0..self.blk.len as usize {
+            let bo: usize = (8 * (self.blk.len as usize - k + 1)) as usize;
+            for i in 0..8 as usize {
+                for j in 0..8 as usize {
+                    if i == j {
+                        continue;
+                    };
+                    if (crc ^ SYNDROM[i + bo] ^ SYNDROM[j + bo]) == 0 {
+                        self.blk.txt[k] ^= 1 << i;
+                        self.blk.txt[k] ^= 1 << j;
+                        return Err(ACARSDecodingError::FixDB);
+                    }
+                }
+            }
+        }
+        return Ok(());
+    }
+
+    fn fixprerr(
+        &mut self,
+        crc: u32,
+        pr: &[u8; 3],
+        pr_index: usize,
+        pn: usize,
+    ) -> Result<(), ACARSDecodingError> {
+        if pn > 0 {
+            /* try to recursievly fix parity error */
+            for i in 0..8 as usize {
+                let test =
+                    crc ^ SYNDROM[i + 8 * (self.blk.len as usize - pr[pr_index] as usize + 1)];
+                match self.fixprerr(test, pr, pr_index + 1, pn - 1) {
+                    Ok(_) => {
+                        self.blk.txt[pr_index] ^= 1 << i;
+                        return Ok(());
+                    }
+                    Err(_) => {
+                        return Err(ACARSDecodingError::FixPR);
+                    }
+                }
+                // {
+                //     blk.txt[*pr] ^= (1 << i);
+                //     return Ok(());
+                // }
+            }
+            return Err(ACARSDecodingError::FixPR);
+        } else {
+            /* end of recursion : no more parity error */
+            if crc == 0 {
                 return Ok(());
-            }
-        }
-        return Err(ACARSDecodingError::FixPR);
-    }
-}
+            };
 
-fn parity_and_crc_check(blk: &mut Mskblks) {
-    let mut pr: [u8; 3] = [0; 3];
-    // handle message
-    if blk.len() < 13 {
-        // too short
-        info!("Message too short");
-        return;
-    }
-
-    /* force STX/ETX */
-    blk.txt[12] &= ETX | STX;
-    blk.txt[12] |= ETX & STX;
-
-    /* parity check */
-    let mut pn: usize = 0;
-    for i in 0..blk.len as usize {
-        if (NUMBITS[blk.txt[i] as usize] & 1) == 0 {
-            if pn < MAXPERR {
-                pr[pn] = i as u8;
+            /* test remainding error in crc */
+            for i in 0..16 as usize {
+                if SYNDROM[i] == crc {
+                    return Ok(());
+                }
             }
-            pn += 1;
-        }
-        if (NUMBITS[blk.txt[i] as usize] & 1) == 0 {
-            if pn < MAXPERR {
-                pr[pn] = i as u8;
-            }
-            pn += 1;
+            return Err(ACARSDecodingError::FixPR);
         }
     }
-    if pn > MAXPERR {
-        info!("Too many parity errors");
-        return;
-    }
-    if pn > 0 {
-        info!("Parity errors: {}", pn);
-    }
-    blk.err = pn;
 
-    /* crc check */
-    let mut crc: u32 = 0;
-    for i in 0..blk.len as usize {
-        crc = update_crc(crc, blk.txt[i] as u32);
-    }
+    fn parity_and_crc_check(&mut self) {
+        let mut pr: [u8; 3] = [0; 3];
+        // handle message
+        if self.blk.len() < 13 {
+            // too short
+            info!("Message too short");
+            return;
+        }
 
-    crc = update_crc(crc, blk.crc[0] as u32);
-    crc = update_crc(crc, blk.crc[1] as u32);
-    if crc != 0 {
-        error!("{} crc error\n", blk.chn + 1);
-    } else {
-        trace!("CRC OK");
-    }
+        /* force STX/ETX */
+        self.blk.txt[12] &= ETX | STX;
+        self.blk.txt[12] |= ETX & STX;
 
-    /* try to fix error */
-    if pn > 0 {
-        match fixprerr(blk, crc, &pr, 0, pn) {
-            Ok(_) => {}
-            Err(_) => {
-                error!("{:#} not able to fix errors\n", blk.chn + 1);
-                return;
+        /* parity check */
+        let mut pn: usize = 0;
+        for i in 0..self.blk.len as usize {
+            if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
+                if pn < MAXPERR {
+                    pr[pn] = i as u8;
+                }
+                pn += 1;
+            }
+            if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
+                if pn < MAXPERR {
+                    pr[pn] = i as u8;
+                }
+                pn += 1;
             }
         }
-        info!("{:#} errors fixed\n", blk.chn + 1);
-    } else {
-        if crc > 0 {
-            match fixdberr(blk, crc) {
+        if pn > MAXPERR {
+            info!("Too many parity errors");
+            return;
+        }
+        if pn > 0 {
+            info!("Parity errors: {}", pn);
+        }
+        self.blk.err = pn;
+
+        /* crc check */
+        let mut crc: u32 = 0;
+        for i in 0..self.blk.len as usize {
+            crc = self.update_crc(crc, self.blk.txt[i] as u32);
+        }
+
+        crc = self.update_crc(crc, self.blk.crc[0] as u32);
+        crc = self.update_crc(crc, self.blk.crc[1] as u32);
+        if crc != 0 {
+            error!("{} crc error\n", self.blk.chn + 1);
+        } else {
+            trace!("CRC OK");
+        }
+
+        /* try to fix error */
+        if pn > 0 {
+            match self.fixprerr(crc, &pr, 0, pn) {
                 Ok(_) => {}
                 Err(_) => {
-                    error!("{:#} not able to fix errors\n", blk.chn + 1);
+                    error!("{:#} not able to fix errors\n", self.blk.chn + 1);
                     return;
                 }
             }
-            info!("{:#} errors fixed\n", blk.chn + 1);
+            info!("{:#} errors fixed\n", self.blk.chn + 1);
+        } else {
+            if crc > 0 {
+                match self.fixdberr(crc) {
+                    Ok(_) => {}
+                    Err(_) => {
+                        error!("{:#} not able to fix errors\n", self.blk.chn + 1);
+                        return;
+                    }
+                }
+                info!("{:#} errors fixed\n", self.blk.chn + 1);
+            }
         }
-    }
 
-    // /* redo parity checking and removing */
-    pn = 0;
-    for i in 0..blk.len as usize {
-        if (NUMBITS[blk.txt[i] as usize] & 1) == 0 {
-            pn += 1;
+        // /* redo parity checking and removing */
+        pn = 0;
+        for i in 0..self.blk.len as usize {
+            if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
+                pn += 1;
+            }
+            self.blk.txt[i] &= 0x7f;
         }
-        blk.txt[i] &= 0x7f;
-    }
-    if pn > 0 {
-        info!("Parity errors: {}", pn);
+        if pn > 0 {
+            info!("Parity errors: {}", pn);
+        }
+
+        trace!("Parity and CRC check complete");
+
+        self.generate_output_message();
     }
 
-    trace!("Parity and CRC check complete");
-
-    // outputmsg(blk);
+    fn generate_output_message(&self) {
+        trace!("Generating output message. NOT IMPLEMENTED");
+    }
 }
