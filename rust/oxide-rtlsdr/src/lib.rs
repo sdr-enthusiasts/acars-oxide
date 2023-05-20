@@ -353,7 +353,7 @@ impl Channel {
             wf,
             dm_buffer: [0.0; RTLOUTBUFSZ],
             msk_phi: 0.0,
-            msk_df: 8.0,
+            msk_df: 0.0,
             msk_clk: 0.0,
             msk_lvl_sum: 0.0,
             msk_bit_count: 0,
@@ -419,6 +419,8 @@ impl Channel {
                 v /= lvl + 1e-8;
                 self.msk_lvl_sum += lvl * lvl / 4.0;
                 self.msk_bit_count += 1;
+
+                info!("{}", self.msk_s & 1);
 
                 if self.msk_s & 1 != 0 {
                     vo = v.im;
@@ -595,7 +597,7 @@ impl Channel {
         // if (blkq_e == NULL)
         //     blkq_e = blkq_s;
 
-        info!("A message?");
+        info!("A message? {}", self.freq);
         self.blk.reset();
         self.acars_state = ACARSState::END;
         self.nbits = 8;
