@@ -267,8 +267,8 @@ impl RtlSdr {
                     .read_async(4, buffer_len, |bytes| {
                         counter = 0;
                         for m in 0..rtloutbufz {
-                            for u in 0..self.rtl_mult as usize {
-                                vb[u] = (bytes[counter] as f32 - 127.37)
+                            for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
+                                *vb_item = (bytes[counter] as f32 - 127.37)
                                     + (bytes[counter + 1] as f32 - 127.37)
                                         * num::complex::Complex::i();
                                 counter += 2;
