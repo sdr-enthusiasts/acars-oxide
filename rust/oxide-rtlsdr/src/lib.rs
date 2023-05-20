@@ -403,14 +403,11 @@ impl Channel {
                     o = MFLTOVER as f32
                 };
 
-                let mut j = 0;
-
-                while j < FLEN {
+                for j in 0..FLEN as usize {
                     v = v.add(
                         self.h[o as usize]
                             * self.inb[(j as usize + self.idx as usize) % FLEN as usize],
                     );
-                    j += 1;
                     o += MFLTOVER as f32;
                 }
 
@@ -464,7 +461,6 @@ impl Channel {
         if self.nbits <= 0 {
             // DECODE ACARS!
             self.decode_acars();
-            self.nbits = 8;
         }
     }
 
