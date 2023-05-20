@@ -3,11 +3,11 @@ extern crate env_logger;
 extern crate log;
 
 use chrono::Local;
+use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::LevelFilter;
 use std::io::Write;
 
-// TODO: Colors?
 // TODO: Wrap modules in their own labels
 
 pub trait SetupLogging {
@@ -27,11 +27,28 @@ impl SetupLogging for u8 {
     fn enable_logging(&self) {
         Builder::new()
             .format(|buf, record| {
+                let mut level_style = buf.style();
+
+                if record.level() == log::Level::Info {
+                    level_style.set_color(Color::Green).set_bold(true);
+                } else if record.level() == log::Level::Debug {
+                    level_style.set_color(Color::Cyan).set_bold(true);
+                } else if record.level() == log::Level::Trace {
+                    level_style.set_color(Color::Magenta).set_bold(true);
+                } else if record.level() == log::Level::Error {
+                    level_style.set_color(Color::Red).set_bold(true);
+                } else if record.level() == log::Level::Warn {
+                    level_style.set_color(Color::Yellow).set_bold(true);
+                } else {
+                    level_style.set_color(Color::White).set_bold(true);
+                }
+
+                //assert_eq!("00000110", format!("{:0>8}", "110"));
                 writeln!(
                     buf,
-                    "{} [{}] - {}",
+                    "{} [{}] {}",
+                    level_style.value(format!("{: <5}", record.level())),
                     Local::now().format("%Y-%m-%dT%H:%M:%S"),
-                    record.level(),
                     record.args()
                 )
             })
