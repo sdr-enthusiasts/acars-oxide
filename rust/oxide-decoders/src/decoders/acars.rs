@@ -314,7 +314,7 @@ pub struct ACARSDecoder {
     msk_s: u32,
     idx: u32,
     inb: [Complex<f32>; FLEN as usize],
-    outbits: u8, // orignial was unsigned char.....
+    outbits: u8, // original was unsigned char.....
     nbits: i32,
     acars_state: ACARSState,
     h: [f32; FLENO],

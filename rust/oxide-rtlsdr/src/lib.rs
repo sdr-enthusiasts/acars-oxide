@@ -153,7 +153,7 @@ impl RtlSdr {
                     );
                 }
                 // Verify freq spread less than 2mhz. This is much less complex than acarsdec
-                // but I fail to see how this is not equivilant with a lot less bullshit
+                // but I fail to see how this is not equivalent with a lot less bullshit
 
                 if self.frequencies.len() > 1
                     && self.frequencies[self.frequencies.len() - 1] - self.frequencies[0] > 2.0
