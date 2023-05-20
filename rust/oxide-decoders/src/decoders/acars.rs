@@ -228,13 +228,13 @@ custom_error! {pub ACARSDecodingError
 
 #[derive(Debug)]
 enum ACARSState {
-    WSYN,
-    SYN2,
-    SOH1,
-    TXT,
-    CRC1,
-    CRC2,
-    END,
+    Wsyn,
+    Syn2,
+    Soh1,
+    Txt,
+    Crc1,
+    Crc2,
+    End,
 }
 
 struct Mskblks {
@@ -338,13 +338,13 @@ impl Decoder for ACARSDecoder {
 impl ACARSDecoder {
     pub fn new(channel_number: i32, freq: i32, wf: [num::Complex<f32>; 192]) -> Self {
         let mut h: [f32; FLENO] = [0.0; FLENO];
-        for i in 0..FLENO {
-            h[i] = f32::cos(
+        for (i, h_item) in h.iter_mut().enumerate().take(FLENO) {
+            *h_item = f32::cos(
                 2.0 * std::f32::consts::PI * 600.0 / INTRATE as f32 / MFLTOVER as f32
                     * (i as f32 - (FLENO as f32 - 1.0) / 2.0),
             );
-            if h[i] < 0.0 {
-                h[i] = 0.0;
+            if *h_item < 0.0 {
+                *h_item = 0.0;
             };
         }
 
@@ -363,7 +363,7 @@ impl ACARSDecoder {
             inb: [num::Complex::new(0.0, 0.0); FLEN as usize],
             outbits: 0,
             nbits: 8,
-            acars_state: ACARSState::WSYN,
+            acars_state: ACARSState::Wsyn,
             h,
             blk: Mskblks::new(),
         }
@@ -406,8 +406,7 @@ impl ACARSDecoder {
 
                 for j in 0..FLEN as usize {
                     v = v.add(
-                        self.h[o as usize]
-                            * self.inb[(j as usize + self.idx as usize) % FLEN as usize],
+                        self.h[o as usize] * self.inb[(j + self.idx as usize) % FLEN as usize],
                     );
                     o += MFLTOVER as f32;
                 }
@@ -447,7 +446,7 @@ impl ACARSDecoder {
     }
 
     fn reset_acars(&mut self) {
-        self.acars_state = ACARSState::WSYN;
+        self.acars_state = ACARSState::Wsyn;
         self.nbits = 1;
         self.msk_df = 0.0;
     }
@@ -468,25 +467,25 @@ impl ACARSDecoder {
     fn decode_acars(&mut self) {
         //info!("{:?}", self.acars_state);
         match self.acars_state {
-            ACARSState::WSYN => {
+            ACARSState::Wsyn => {
                 if self.outbits == SYN {
-                    self.acars_state = ACARSState::SYN2;
+                    self.acars_state = ACARSState::Syn2;
                     self.nbits = 8;
                     return;
                 }
                 // NOTE: This is supposed to be a bitwise NOT
                 if self.outbits == !SYN {
                     self.msk_s ^= 2;
-                    self.acars_state = ACARSState::SYN2;
+                    self.acars_state = ACARSState::Syn2;
                     self.nbits = 8;
                     return;
                 }
                 self.nbits = 1;
             }
 
-            ACARSState::SYN2 => {
+            ACARSState::Syn2 => {
                 if self.outbits == SYN {
-                    self.acars_state = ACARSState::SOH1;
+                    self.acars_state = ACARSState::Soh1;
                     self.nbits = 8;
                     return;
                 }
@@ -498,7 +497,7 @@ impl ACARSDecoder {
                 }
                 self.reset_acars();
             }
-            ACARSState::SOH1 => {
+            ACARSState::Soh1 => {
                 trace!("SOH1");
                 if self.outbits == SOH {
                     if self.blk.init {
@@ -516,7 +515,7 @@ impl ACARSDecoder {
                     self.blk.set_len(0);
                     self.blk.set_err(0);
 
-                    self.acars_state = ACARSState::TXT;
+                    self.acars_state = ACARSState::Txt;
                     self.nbits = 8;
                     self.msk_lvl_sum = 0.0;
                     self.msk_bit_count = 0;
@@ -524,7 +523,7 @@ impl ACARSDecoder {
                 }
                 self.reset_acars();
             }
-            ACARSState::TXT => {
+            ACARSState::Txt => {
                 trace!("TXT!");
                 self.blk
                     .set_text_by_index(self.blk.len as usize, self.outbits);
@@ -541,15 +540,15 @@ impl ACARSDecoder {
                     }
                 }
                 if self.outbits == ETX || self.outbits == ETB {
-                    self.acars_state = ACARSState::CRC1;
+                    self.acars_state = ACARSState::Crc1;
                     self.nbits = 8;
                     return;
                 }
                 if self.blk.len > 20 && self.outbits == DLE {
                     self.blk.len -= 3;
-                    self.blk.crc[0] = self.blk.txt[self.blk.len as usize] as u8;
-                    self.blk.crc[1] = self.blk.txt[self.blk.len as usize + 1] as u8;
-                    self.acars_state = ACARSState::CRC2;
+                    self.blk.crc[0] = self.blk.txt[self.blk.len as usize];
+                    self.blk.crc[1] = self.blk.txt[self.blk.len as usize + 1];
+                    self.acars_state = ACARSState::Crc2;
                     self.put_msg_label();
                 }
                 if self.blk.len > 240 {
@@ -558,19 +557,19 @@ impl ACARSDecoder {
                 }
                 self.nbits = 8;
             }
-            ACARSState::CRC1 => {
+            ACARSState::Crc1 => {
                 trace!("CRC1");
                 self.blk.crc[0] = self.outbits;
-                self.acars_state = ACARSState::CRC2;
+                self.acars_state = ACARSState::Crc2;
                 self.nbits = 8;
             }
 
-            ACARSState::CRC2 => {
+            ACARSState::Crc2 => {
                 trace!("CRC2");
                 self.blk.crc[1] = self.outbits;
                 self.put_msg_label();
             }
-            ACARSState::END => {
+            ACARSState::End => {
                 trace!("END");
                 self.reset_acars();
                 self.nbits = 8;
@@ -592,7 +591,7 @@ impl ACARSDecoder {
 
         info!("A message? {}", self.freq);
         self.blk.reset();
-        self.acars_state = ACARSState::END;
+        self.acars_state = ACARSState::End;
         self.nbits = 8;
     }
 
@@ -600,22 +599,22 @@ impl ACARSDecoder {
         // #define update_crc(crc,c) crc= (crc>> 8)^crc_ccitt_table[(crc^(c))&0xff];
         let mut crc: u32 = crc;
         crc = (crc >> 8) ^ CRC[((crc ^ c) & 0xff) as usize];
-        crc as u32
+        crc
     }
 
     fn fixdberr(&mut self, crc: u32) -> Result<(), ACARSDecodingError> {
         /* test remaining error in crc */
-        for i in 0..16 as usize {
-            if SYNDROM[i] == crc {
+        for item in SYNDROM.iter().take(16_usize) {
+            if *item == crc {
                 return Err(ACARSDecodingError::FixDB);
             }
         }
 
         /* test double error in bytes */
         for k in 0..self.blk.len as usize {
-            let bo: usize = (8 * (self.blk.len as usize - k + 1)) as usize;
-            for i in 0..8 as usize {
-                for j in 0..8 as usize {
+            let bo: usize = 8 * (self.blk.len as usize - k + 1);
+            for i in 0..8_usize {
+                for j in 0..8_usize {
                     if i == j {
                         continue;
                     };
@@ -627,7 +626,7 @@ impl ACARSDecoder {
                 }
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     fn fixprerr(
@@ -639,24 +638,19 @@ impl ACARSDecoder {
     ) -> Result<(), ACARSDecodingError> {
         if pn > 0 {
             /* try to recursievly fix parity error */
-            for i in 0..8 as usize {
+            for i in 0..8 {
                 let test =
                     crc ^ SYNDROM[i + 8 * (self.blk.len as usize - pr[pr_index] as usize + 1)];
-                match self.fixprerr(test, pr, pr_index + 1, pn - 1) {
-                    Ok(_) => {
-                        self.blk.txt[pr_index] ^= 1 << i;
-                        return Ok(());
-                    }
-                    Err(_) => {
-                        return Err(ACARSDecodingError::FixPR);
-                    }
+                if self.fixprerr(test, pr, pr_index + 1, pn - 1).is_ok() {
+                    self.blk.txt[pr_index] ^= 1 << i;
+                    return Ok(());
                 }
                 // {
                 //     blk.txt[*pr] ^= (1 << i);
                 //     return Ok(());
                 // }
             }
-            return Err(ACARSDecodingError::FixPR);
+            Err(ACARSDecodingError::FixPR)
         } else {
             /* end of recursion : no more parity error */
             if crc == 0 {
@@ -664,12 +658,12 @@ impl ACARSDecoder {
             };
 
             /* test remainding error in crc */
-            for i in 0..16 as usize {
-                if SYNDROM[i] == crc {
+            for item in SYNDROM.iter().take(16_usize) {
+                if *item == crc {
                     return Ok(());
                 }
             }
-            return Err(ACARSDecodingError::FixPR);
+            Err(ACARSDecodingError::FixPR)
         }
     }
 
@@ -735,17 +729,15 @@ impl ACARSDecoder {
                 }
             }
             info!("{:#} errors fixed\n", self.blk.chn + 1);
-        } else {
-            if crc > 0 {
-                match self.fixdberr(crc) {
-                    Ok(_) => {}
-                    Err(_) => {
-                        error!("{:#} not able to fix errors\n", self.blk.chn + 1);
-                        return;
-                    }
+        } else if crc > 0 {
+            match self.fixdberr(crc) {
+                Ok(_) => {}
+                Err(_) => {
+                    error!("{:#} not able to fix errors\n", self.blk.chn + 1);
+                    return;
                 }
-                info!("{:#} errors fixed\n", self.blk.chn + 1);
             }
+            info!("{:#} errors fixed\n", self.blk.chn + 1);
         }
 
         // /* redo parity checking and removing */

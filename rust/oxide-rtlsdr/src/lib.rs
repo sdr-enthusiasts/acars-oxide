@@ -100,7 +100,7 @@ impl RtlSdr {
                 // I cannot imagine we would EVER see this, but just in case
 
                 self.frequencies.dedup();
-                if self.frequencies.len() == 0 {
+                if self.frequencies.is_empty() {
                     return Err(RTLSDRError::NoFrequencyProvided {
                         sdr: self.serial.clone(),
                     });
@@ -155,12 +155,12 @@ impl RtlSdr {
                 // Verify freq spread less than 2mhz. This is much less complex than acarsdec
                 // but I fail to see how this is not equivilant with a lot less bullshit
 
-                if self.frequencies.len() > 1 {
-                    if self.frequencies[self.frequencies.len() - 1] - self.frequencies[0] > 2.0 {
-                        return Err(RTLSDRError::FrequencySpreadTooLarge {
-                            sdr: self.serial.clone(),
-                        });
-                    }
+                if self.frequencies.len() > 1
+                    && self.frequencies[self.frequencies.len() - 1] - self.frequencies[0] > 2.0
+                {
+                    return Err(RTLSDRError::FrequencySpreadTooLarge {
+                        sdr: self.serial.clone(),
+                    });
                 }
 
                 let rtl_in_rate = self.get_intrate() * self.rtl_mult;
