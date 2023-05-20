@@ -420,8 +420,6 @@ impl Channel {
                 self.msk_lvl_sum += lvl * lvl / 4.0;
                 self.msk_bit_count += 1;
 
-                info!("{}", self.msk_s & 1);
-
                 if self.msk_s & 1 != 0 {
                     vo = v.im;
                     if vo >= 0.0 {
