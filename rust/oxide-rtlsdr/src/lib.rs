@@ -287,8 +287,8 @@ impl RtlSdr {
                             }
                         }
 
-                        for channel_index in 0..self.channel.len() {
-                            self.channel[channel_index].decode(rtloutbufz as u32);
+                        for channel in &mut self.channel {
+                            channel.decode(rtloutbufz as u32);
                         }
                     })
                     .unwrap();
