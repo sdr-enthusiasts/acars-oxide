@@ -1,8 +1,10 @@
 #[macro_use]
 extern crate log;
 extern crate oxide_rtlsdr;
+
 use oxide_config::clap::Parser;
 use oxide_config::OxideInput;
+use oxide_decoders::ValidDecoderType;
 use oxide_logging::SetupLogging;
 use oxide_rtlsdr::RtlSdr;
 use tokio::time::{sleep, Duration};
@@ -27,8 +29,17 @@ async fn main() {
             let bias_tee = args.sdr1biastee.unwrap_or(false);
             let rtl_mult = args.sdr1mult.unwrap_or(160);
             let frequencies = args.sdr1freqs.unwrap_or(vec![]);
+            let decoder_type = args.sdr1decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
-            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            let sdr = RtlSdr::new(
+                serial,
+                ppm,
+                gain,
+                bias_tee,
+                rtl_mult,
+                frequencies,
+                decoder_type,
+            );
 
             rtlsdr.push(sdr);
         }
@@ -44,8 +55,17 @@ async fn main() {
             let bias_tee = args.sdr2biastee.unwrap_or(false);
             let rtl_mult = args.sdr2mult.unwrap_or(160);
             let frequencies = args.sdr2freqs.unwrap_or(vec![]);
+            let decoder_type = args.sdr2decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
-            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            let sdr = RtlSdr::new(
+                serial,
+                ppm,
+                gain,
+                bias_tee,
+                rtl_mult,
+                frequencies,
+                decoder_type,
+            );
 
             rtlsdr.push(sdr);
         }
@@ -61,8 +81,17 @@ async fn main() {
             let bias_tee = args.sdr3biastee.unwrap_or(false);
             let rtl_mult = args.sdr3mult.unwrap_or(160);
             let frequencies = args.sdr3freqs.unwrap_or(vec![]);
+            let decoder_type = args.sdr3decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
-            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            let sdr = RtlSdr::new(
+                serial,
+                ppm,
+                gain,
+                bias_tee,
+                rtl_mult,
+                frequencies,
+                decoder_type,
+            );
 
             rtlsdr.push(sdr);
         }
@@ -78,8 +107,17 @@ async fn main() {
             let bias_tee = args.sdr4biastee.unwrap_or(false);
             let rtl_mult = args.sdr4mult.unwrap_or(160);
             let frequencies = args.sdr4freqs.unwrap_or(vec![]);
+            let decoder_type = args.sdr4decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
-            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            let sdr = RtlSdr::new(
+                serial,
+                ppm,
+                gain,
+                bias_tee,
+                rtl_mult,
+                frequencies,
+                decoder_type,
+            );
 
             rtlsdr.push(sdr);
         }
@@ -95,8 +133,17 @@ async fn main() {
             let bias_tee = args.sdr5biastee.unwrap_or(false);
             let rtl_mult = args.sdr5mult.unwrap_or(160);
             let frequencies = args.sdr5freqs.unwrap_or(vec![]);
+            let decoder_type = args.sdr5decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
-            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            let sdr = RtlSdr::new(
+                serial,
+                ppm,
+                gain,
+                bias_tee,
+                rtl_mult,
+                frequencies,
+                decoder_type,
+            );
 
             rtlsdr.push(sdr);
         }
@@ -112,8 +159,17 @@ async fn main() {
             let bias_tee = args.sdr6biastee.unwrap_or(false);
             let rtl_mult = args.sdr6mult.unwrap_or(160);
             let frequencies = args.sdr6freqs.unwrap_or(vec![]);
+            let decoder_type = args.sdr6decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
-            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            let sdr = RtlSdr::new(
+                serial,
+                ppm,
+                gain,
+                bias_tee,
+                rtl_mult,
+                frequencies,
+                decoder_type,
+            );
 
             rtlsdr.push(sdr);
         }
@@ -129,8 +185,17 @@ async fn main() {
             let bias_tee = args.sdr7biastee.unwrap_or(false);
             let rtl_mult = args.sdr7mult.unwrap_or(160);
             let frequencies = args.sdr7freqs.unwrap_or(vec![]);
+            let decoder_type = args.sdr7decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
-            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            let sdr = RtlSdr::new(
+                serial,
+                ppm,
+                gain,
+                bias_tee,
+                rtl_mult,
+                frequencies,
+                decoder_type,
+            );
 
             rtlsdr.push(sdr);
         }
@@ -146,8 +211,17 @@ async fn main() {
             let bias_tee = args.sdr8biastee.unwrap_or(false);
             let rtl_mult = args.sdr8mult.unwrap_or(160);
             let frequencies = args.sdr8freqs.unwrap_or(vec![]);
+            let decoder_type = args.sdr8decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
-            let sdr = RtlSdr::new(serial, ppm, gain, bias_tee, rtl_mult, frequencies);
+            let sdr = RtlSdr::new(
+                serial,
+                ppm,
+                gain,
+                bias_tee,
+                rtl_mult,
+                frequencies,
+                decoder_type,
+            );
 
             rtlsdr.push(sdr);
         }

@@ -1,5 +1,5 @@
 [package]
-name = "oxide-config"
+name = "oxide-decoders"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,6 +12,6 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-clap = { version = "4.2.7", features = ["derive", "env"] }
+log = "0.4.17"
 custom_error = "1.9.2"
-oxide-decoders = { path = "../oxide-decoders" }
+num = "0.4.0"

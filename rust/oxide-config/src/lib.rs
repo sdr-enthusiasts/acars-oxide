@@ -2,6 +2,7 @@ pub extern crate clap as clap;
 extern crate custom_error;
 
 use custom_error::custom_error;
+use oxide_decoders::ValidDecoderType;
 use std::num::ParseFloatError;
 use std::num::ParseIntError;
 
@@ -104,7 +105,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr1serial")
     ]
-    pub sdr1decoding_type: Option<String>,
+    pub sdr1decoding_type: Option<ValidDecoderType>,
     #[clap(
         long,
         env = "OXIDE_SDR2SERIAL",
@@ -169,7 +170,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr2serial"
     )]
-    pub sdr2decoding_type: Option<String>,
+    pub sdr2decoding_type: Option<ValidDecoderType>,
     #[clap(
         long,
         env = "OXIDE_SDR3SERIAL",
@@ -234,7 +235,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr3serial"
     )]
-    pub sdr3decoding_type: Option<String>,
+    pub sdr3decoding_type: Option<ValidDecoderType>,
     #[clap(
         long,
         env = "OXIDE_SDR4SERIAL",
@@ -299,7 +300,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr4serial"
     )]
-    pub sdr4decoding_type: Option<String>,
+    pub sdr4decoding_type: Option<ValidDecoderType>,
     #[clap(
         long,
         env = "OXIDE_SDR5SERIAL",
@@ -364,7 +365,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr5serial"
     )]
-    pub sdr5decoding_type: Option<String>,
+    pub sdr5decoding_type: Option<ValidDecoderType>,
     #[clap(
         long,
         env = "OXIDE_SDR6SERIAL",
@@ -429,7 +430,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr6serial"
     )]
-    pub sdr6decoding_type: Option<String>,
+    pub sdr6decoding_type: Option<ValidDecoderType>,
     #[clap(
         long,
         env = "OXIDE_SDR7SERIAL",
@@ -494,7 +495,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr7serial"
     )]
-    pub sdr7decoding_type: Option<String>,
+    pub sdr7decoding_type: Option<ValidDecoderType>,
     #[clap(
         long,
         env = "OXIDE_SDR8SERIAL",
@@ -559,7 +560,7 @@ pub struct OxideInput {
         hide = true,
         requires = "sdr8serial"
     )]
-    pub sdr8decoding_type: Option<String>,
+    pub sdr8decoding_type: Option<ValidDecoderType>,
 }
 
 custom_error! { OxideInputError
@@ -591,13 +592,18 @@ fn validate_mult(env: &str) -> Result<i32, OxideInputError> {
     Ok(mult)
 }
 
-fn validate_decoding_type(env: &str) -> Result<String, OxideInputError> {
-    if env.to_uppercase() != "ACARS" && env.to_uppercase() != "VDLM2" {
-        return Err(OxideInputError::DecodingType {
-            input: env.to_string(),
-        });
+fn validate_decoding_type(env: &str) -> Result<ValidDecoderType, OxideInputError> {
+    if env.to_uppercase() == "ACARS" {
+        return Ok(ValidDecoderType::ACARS);
     }
-    Ok(env.to_string())
+
+    if env.to_uppercase() == "VDLM2" {
+        return Ok(ValidDecoderType::VDL2);
+    }
+
+    Err(OxideInputError::DecodingType {
+        input: env.to_string(),
+    })
 }
 
 fn parse_sdr_gain(env: &str) -> Result<i32, OxideInputError> {

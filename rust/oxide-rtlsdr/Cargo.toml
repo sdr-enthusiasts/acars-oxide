@@ -19,3 +19,4 @@ rtlsdr_sys = "1.1.2"
 ctrlc = "3.2.5"
 num = "0.4.0"
 custom_error = "1.9.2"
+oxide-decoders = { path = "../oxide-decoders" }
