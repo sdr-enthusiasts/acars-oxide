@@ -714,7 +714,7 @@ impl ACARSDecoder {
         crc = self.update_crc(crc, self.blk.crc[0] as u32);
         crc = self.update_crc(crc, self.blk.crc[1] as u32);
         if crc != 0 {
-            error!("{} crc error\n", self.blk.chn + 1);
+            error!("{} crc error", self.blk.chn + 1);
         } else {
             trace!("CRC OK");
         }
@@ -724,20 +724,20 @@ impl ACARSDecoder {
             match self.fixprerr(crc, &pr, 0, pn) {
                 Ok(_) => {}
                 Err(_) => {
-                    error!("{:#} not able to fix errors\n", self.blk.chn + 1);
+                    error!("{:#} not able to fix errors", self.blk.chn + 1);
                     return;
                 }
             }
-            info!("{:#} errors fixed\n", self.blk.chn + 1);
+            info!("{:#} errors fixed", self.blk.chn + 1);
         } else if crc > 0 {
             match self.fixdberr(crc) {
                 Ok(_) => {}
                 Err(_) => {
-                    error!("{:#} not able to fix errors\n", self.blk.chn + 1);
+                    error!("{:#} not able to fix errors", self.blk.chn + 1);
                     return;
                 }
             }
-            info!("{:#} errors fixed\n", self.blk.chn + 1);
+            info!("{:#} errors fixed", self.blk.chn + 1);
         }
 
         // /* redo parity checking and removing */
