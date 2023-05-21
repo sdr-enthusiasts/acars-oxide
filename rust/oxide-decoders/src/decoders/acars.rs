@@ -1,6 +1,8 @@
 use crate::Decoder;
 use custom_error::custom_error;
 use num::Complex;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::ops::Add;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
@@ -253,6 +255,29 @@ pub struct AssembledACARSMessage {
     txt: [char; 250],
     err: u8,
     lvl: f32,
+}
+
+impl Display for AssembledACARSMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "mode: {}, addr: {}, ack: {}, label: {}, bid: {}, no: {}, fid: {}, sublabel: {}, mfi: {}, bs: {}, be: {}, txt: {}, err: {}, lvl: {}",
+            self.mode,
+            self.addr.iter().collect::<String>(),
+            self.ack,
+            self.label.iter().collect::<String>(),
+            self.bid,
+            self.no.iter().collect::<String>(),
+            self.fid.iter().collect::<String>(),
+            self.sublabel.iter().collect::<String>(),
+            self.mfi.iter().collect::<String>(),
+            self.bs,
+            self.be,
+            self.txt.iter().collect::<String>(),
+            self.err,
+            self.lvl
+        )
+    }
 }
 
 impl AssembledACARSMessage {
@@ -1060,7 +1085,7 @@ impl ACARSDecoder {
         //}
 
         trace!(
-            "[{: <13}] Assembled Message: {:#?}",
+            "[{: <13}] Assembled Message: {}",
             format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
             output_message
         );
