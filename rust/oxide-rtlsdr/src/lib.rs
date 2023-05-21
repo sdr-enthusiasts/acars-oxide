@@ -262,7 +262,7 @@ impl RtlSdr {
         }
     }
 
-    pub async fn read_samples(mut self) {
+    pub fn read_samples(mut self) {
         let rtloutbufz = self.get_rtloutbufsz();
         let buffer_len: u32 = rtloutbufz as u32 * self.rtl_mult as u32 * 2;
         let mut vb: [num::Complex<f32>; 320] = [num::complex::Complex::new(0.0, 0.0); 320];

@@ -35,7 +35,7 @@ impl OxideScanner {
                     valid_sdrs += 1;
                     info!("[OXIDE SCANNER] SDR {} opened", sdr.get_serial());
                     tokio::spawn(async move {
-                        sdr.read_samples().await;
+                        sdr.read_samples();
                     });
                 }
                 Err(e) => {

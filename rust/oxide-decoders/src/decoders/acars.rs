@@ -1101,7 +1101,8 @@ impl ACARSDecoder {
             Some(ref output_channel) => {
                 let rt = Runtime::new().unwrap();
                 trace!("Sending ACARS message to output channel");
-                rt.block_on(output_channel.send(output_message)).unwrap();
+                rt.block_on(output_channel.send(output_message))
+                    .expect("Failed to send ACARS message to output channel");
                 trace!("Sent ACARS message to output channel");
             }
             None => {
