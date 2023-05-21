@@ -230,7 +230,7 @@ async fn main() {
         }
     }
 
-    let scanner = oxide_scanner::OxideScanner::new(rtlsdr);
+    let scanner = oxide_scanner::OxideScanner::new(rtlsdr, args.output_to_console, false);
     scanner.run().await;
 
     trace!("Starting the sleep loop");

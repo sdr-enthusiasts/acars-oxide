@@ -1,11 +1,13 @@
 use crate::Decoder;
 use custom_error::custom_error;
+use futures::executor::block_on;
 use num::Complex;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::ops::Add;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
+use tokio::sync::mpsc::Sender;
 
 pub const INTRATE: i32 = 12500;
 pub const RTLOUTBUFSZ: usize = 1024;
@@ -270,6 +272,7 @@ pub struct AssembledACARSMessage {
     txt: Vec<char>,
     err: u8,
     lvl: f32,
+    frequency: f32,
     downlink_status: DownlinkStatus,
 }
 
@@ -277,7 +280,8 @@ impl Display for AssembledACARSMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {}, mfi: {}, bs: {}, be: {}, txt: {}, err: {}, lvl: {}",
+            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {}, mfi: {}, bs: {}, be: {}, txt: {}, err: {}, lvl: {}",
+            self.frequency,
             self.mode,
             self.tail_addr.iter().collect::<String>().trim(),
             self.downlink_status,
@@ -301,6 +305,7 @@ impl AssembledACARSMessage {
     fn new() -> Self {
         Self {
             mode: ' ',
+            frequency: 0.0,
             tail_addr: [' '; 8],
             downlink_status: DownlinkStatus::AirToGround,
             ack: ' ',
@@ -401,6 +406,7 @@ pub struct ACARSDecoder {
     acars_state: ACARSState,
     h: [f32; FLENO],
     blk: Mskblks,
+    output_channel: Option<Sender<AssembledACARSMessage>>,
 }
 
 impl Decoder for ACARSDecoder {
@@ -414,6 +420,10 @@ impl Decoder for ACARSDecoder {
 
     fn set_dm_buffer_at_index(&mut self, index: usize, value: f32) {
         self.dm_buffer[index] = value;
+    }
+
+    fn set_output_channel(&mut self, output_channel: Sender<AssembledACARSMessage>) {
+        self.output_channel = Some(output_channel);
     }
 }
 
@@ -448,6 +458,7 @@ impl ACARSDecoder {
             acars_state: ACARSState::Wsyn,
             h,
             blk: Mskblks::new(),
+            output_channel: None,
         }
     }
 
@@ -903,6 +914,7 @@ impl ACARSDecoder {
         let mut output_message = AssembledACARSMessage::new();
         output_message.lvl = self.blk.lvl;
         output_message.err = self.blk.err as u8;
+        output_message.frequency = self.freq as f32 / 1000000.0;
 
         let mut k: usize = 0;
         let mut j: usize = 0;
@@ -1085,10 +1097,13 @@ impl ACARSDecoder {
         //     if(outflg)
         //         fl=addFlight(&msg,blk->chn,blk->tv);
 
-        trace!(
-            "[{: <13}] Assembled Message: {}",
-            format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-            output_message
-        );
+        match self.output_channel {
+            Some(ref output_channel) => {
+                block_on(output_channel.send(output_message)).unwrap();
+            }
+            None => {
+                error!("No output channel set for ACARS decoder");
+            }
+        }
     }
 }

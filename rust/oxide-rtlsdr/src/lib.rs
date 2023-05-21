@@ -1,9 +1,10 @@
 #[macro_use]
 extern crate log;
-use oxide_decoders::decoders::acars;
 use oxide_decoders::decoders::acars::ACARSDecoder;
+use oxide_decoders::decoders::acars::{self, AssembledACARSMessage};
 use oxide_decoders::{Decoder, ValidDecoderType};
 use rtlsdr_mt::{Controller, Reader};
+use tokio::sync::mpsc::Sender;
 
 extern crate libc;
 
@@ -75,7 +76,10 @@ impl RtlSdr {
         }
     }
 
-    pub fn open_sdr(&mut self) -> Result<(), RTLSDRError> {
+    pub fn open_sdr(
+        &mut self,
+        output_channel: Sender<AssembledACARSMessage>,
+    ) -> Result<(), RTLSDRError> {
         let mut device_index = None;
         for dev in devices() {
             if dev.serial() == self.serial {
@@ -228,7 +232,8 @@ impl RtlSdr {
                     for (ind, window_value) in channel_windows[i].iter().enumerate() {
                         window_array[ind] = *window_value;
                     }
-                    let out_channel = ACARSDecoder::new(i as i32, channels[i], window_array);
+                    let mut out_channel = ACARSDecoder::new(i as i32, channels[i], window_array);
+                    out_channel.set_output_channel(output_channel.clone());
 
                     self.channel.push(Box::new(out_channel));
                 }
