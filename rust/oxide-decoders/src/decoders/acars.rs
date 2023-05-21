@@ -252,7 +252,7 @@ pub struct AssembledACARSMessage {
     mfi: [char; 3],
     bs: char,
     be: char,
-    txt: [char; 250],
+    txt: Vec<char>,
     err: u8,
     lvl: f32,
 }
@@ -294,7 +294,7 @@ impl AssembledACARSMessage {
             mfi: [' '; 3],
             bs: ' ',
             be: ' ',
-            txt: [' '; 250],
+            txt: Vec::new(),
             err: 0,
             lvl: 0.0,
         }
@@ -891,6 +891,7 @@ impl ACARSDecoder {
 
         let mut k: usize = 0;
         let mut j: usize = 0;
+        let mut i: usize = 0;
         let mut outflg: bool = false;
         output_message.mode = self.blk.txt[k] as char;
         k += 1;
@@ -950,8 +951,6 @@ impl ACARSDecoder {
                 // for (i = 0; i < 4 && k < blk->len - 1; i++, k++) {
                 //     msg.no[i] = blk->txt[k];
                 // }
-
-                let mut i: usize = 0;
 
                 while i < 4 && k < self.blk.len as usize - 1 {
                     output_message.no[i] = self.blk.txt[k] as char;
@@ -1042,10 +1041,12 @@ impl ACARSDecoder {
             // #endif // HAVE_LIBACARS
             //             msg.txt = calloc(txt_len + 1, sizeof(char));
             k += 1;
+
             if txt_len > 0 {
                 while k < txt_len {
-                    output_message.txt[k] = self.blk.txt[k] as char;
+                    output_message.txt.push(self.blk.txt[k] as char);
                     k += 1;
+                    i += 1;
                 }
             }
         // #ifdef HAVE_LIBACARS
@@ -1053,7 +1054,7 @@ impl ACARSDecoder {
         // #endif
         } else {
             // empty message text
-            output_message.txt[0] = '\0';
+            output_message.txt.push('\0');
         }
 
         // #ifdef HAVE_LIBACARS
