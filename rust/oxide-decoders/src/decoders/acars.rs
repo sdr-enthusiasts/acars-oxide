@@ -1016,8 +1016,9 @@ impl ACARSDecoder {
             //         } else {
             // #endif // HAVE_LIBACARS
             //             msg.txt = calloc(txt_len + 1, sizeof(char));
+            k += 1;
             if txt_len > 0 {
-                while k < self.blk.len as usize - 1 {
+                while k < txt_len {
                     output_message.txt[k] = self.blk.txt[k] as char;
                     k += 1;
                 }
