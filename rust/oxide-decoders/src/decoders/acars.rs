@@ -1099,6 +1099,7 @@ impl ACARSDecoder {
 
         match self.output_channel {
             Some(ref output_channel) => {
+                trace!("Sending ACARS message to output channel");
                 block_on(output_channel.send(output_message)).unwrap();
             }
             None => {

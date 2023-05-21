@@ -23,6 +23,7 @@ impl OxideOutput {
     }
 
     pub async fn monitor_receiver_channel(&mut self) {
+        trace!("OxideOutput::monitor_receiver_channel() called");
         loop {
             match self.receiver_channel.recv().await {
                 Some(assembled_acars_message) => {
