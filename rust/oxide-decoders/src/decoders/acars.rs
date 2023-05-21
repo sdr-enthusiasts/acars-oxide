@@ -6,6 +6,8 @@ use std::fmt::Formatter;
 use std::ops::Add;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
+use tokio::runtime::Handle;
+
 use tokio::sync::mpsc::Sender;
 
 pub const INTRATE: i32 = 12500;
@@ -1104,7 +1106,9 @@ impl ACARSDecoder {
             Some(ref output_channel) => {
                 trace!("Sending ACARS message to output channel");
 
-                output_channel.send(output_message);
+                let handle = Handle::current();
+                handle.enter();
+                futures::executor::block_on(output_channel.send(output_message));
 
                 trace!("Sent ACARS message to output channel");
             }
