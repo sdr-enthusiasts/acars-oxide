@@ -24,31 +24,14 @@ impl OxideOutput {
 
     pub async fn monitor_receiver_channel(&mut self) {
         trace!("OxideOutput::monitor_receiver_channel() called");
-        loop {
-            trace!("Looping");
-            match self.receiver_channel.recv().await {
-                Some(assembled_acars_message) => {
-                    if self.output_command_line {
-                        info!(
-                            "[{: <13}] ACARS Message: {}",
-                            "OUTPUT CHANNEL", assembled_acars_message
-                        );
-                    } else {
-                        debug!(
-                            "[{: <13}] ACARS Message: {}",
-                            "OUTPUT CHANNEL", assembled_acars_message
-                        );
-                    }
-
-                    if self.enable_zmq {
-                        error!("[{: <13}] ZMQ IS NOT ENABLED!", "OUTPUT CHANNEL");
-                    }
-                }
-                None => {
-                    error!("[{: <13}] Receiver channel issue", "OUTPUT CHANNEL");
-                    break;
-                }
+        while let Some(message) = self.receiver_channel.recv().await {
+            if self.output_command_line {
+                println!("{}", message);
+            }
+            if self.enable_zmq {
+                error!("ZMQ output not implemented yet");
             }
         }
+        trace!("Exiting OxideOutput::monitor_receiver_channel()");
     }
 }
