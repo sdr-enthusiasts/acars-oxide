@@ -851,6 +851,9 @@ impl ACARSDecoder {
         self.generate_output_message();
     }
 
+    #[allow(dead_code)]
+    #[allow(unused_variables)]
+    #[allow(unused_assignments)]
     fn generate_output_message(&self) {
         trace!(
             "[{: <13}] Generating output message",
@@ -863,6 +866,7 @@ impl ACARSDecoder {
 
         let mut k: usize = 0;
         let mut j: usize = 0;
+        let mut outflg: bool = false;
         output_message.mode = self.blk.txt[k] as char;
         k += 1;
 
@@ -896,6 +900,157 @@ impl ACARSDecoder {
         output_message.label[2] = '\0';
 
         output_message.bid = self.blk.txt[k] as char;
+
+        k += 1;
+
+        // #define IS_DOWNLINK_BLK(bid) ((bid) >= '0' && (bid) <= '9')
+        let is_downlink: bool =
+            ((output_message.bid as u8) >= b'0') && ((output_message.bid as u8) <= b'9');
+
+        // libacars step. Skipping for now
+        // TODO: Don't skip
+
+        //     #ifdef HAVE_LIBACARS
+        //     la_msg_dir msg_dir = down ? LA_MSG_DIR_AIR2GND : LA_MSG_DIR_GND2AIR;
+        //     msg.reasm_status = LA_REASM_SKIPPED;    // default value (valid for message with empty text)
+        // #endif
+
+        output_message.bs = self.blk.txt[k] as char;
+        k += 1;
+        output_message.be = self.blk.txt[self.blk.len as usize - 1] as char;
+
+        if output_message.bs != 0x03 as char && is_downlink {
+            /* message no */
+            // for (i = 0; i < 4 && k < blk->len - 1; i++, k++) {
+            //     msg.no[i] = blk->txt[k];
+            // }
+
+            let mut i: usize = 0;
+
+            while i < 4 && k < self.blk.len as usize - 1 {
+                output_message.no[i] = self.blk.txt[k] as char;
+                i += 1;
+                k += 1;
+            }
+            output_message.no[i] = '\0';
+            // libacars step. Skipping for now
+            // TODO: Don't skip
+            // #ifdef HAVE_LIBACARS
+            //             /* The 3-char prefix is used in reassembly hash table key, so we need */
+            //             /* to store the MSN separately as prefix and seq character. */
+            //             for (i = 0; i < 3; i++)
+            //                 msg.msn[i] = msg.no[i];
+            //             msg.msn[3] = '\0';
+            //             msg.msn_seq = msg.no[3];
+            // #endif
+            //             /* Flight id */
+            // for (i = 0; i < 6 && k < blk->len - 1; i++, k++) {
+            //     msg.fid[i] = blk->txt[k];
+            // }
+            i = 0;
+            while i < 6 && k < self.blk.len as usize - 1 {
+                output_message.fid[i] = self.blk.txt[k] as char;
+                i += 1;
+                k += 1;
+            }
+
+            output_message.fid[i] = '\0';
+
+            outflg = true;
+        }
+        //         int txt_len = blk->len - k - 1;
+        // #ifdef HAVE_LIBACARS
+
+        //         // Extract sublabel and MFI if present
+        //         int offset = la_acars_extract_sublabel_and_mfi(msg.label, msg_dir,
+        //                 blk->txt + k, txt_len, msg.sublabel, msg.mfi);
+        //         if(offset > 0) {
+        //             k += offset;
+        //             txt_len -= offset;
+        //         }
+
+        //         la_reasm_table *acars_rtable = NULL;
+        //         if(msg.bid != 0 && reasm_ctx != NULL) { // not a squitter && reassembly engine is enabled
+        //             acars_rtable = la_reasm_table_lookup(reasm_ctx, &la_DEF_acars_message);
+        //             if(acars_rtable == NULL) {
+        //                 acars_rtable = la_reasm_table_new(reasm_ctx, &la_DEF_acars_message,
+        //                         acars_reasm_funcs, LA_ACARS_REASM_TABLE_CLEANUP_INTERVAL);
+        //             }
+
+        //             // The sequence number at which block id wraps at.
+        //             // - downlinks: none (MSN always goes from 'A' up to 'P')
+        //             // - uplinks:
+        //             //   - for VHF Category A (mode=2): wraps after block id 'Z'
+        //             //   - for VHF Category B (mode!=2): wraps after block id 'W'
+        //             //     (blocks 'X'-'Z' are reserved for empty ACKs)
+
+        //             int seq_num_wrap = SEQ_WRAP_NONE;
+        //             if(!down)
+        //                 seq_num_wrap = msg.mode == '2' ? 'Z' + 1 - 'A' : 'X' - 'A';
+
+        //             msg.reasm_status = la_reasm_fragment_add(acars_rtable,
+        //                     &(la_reasm_fragment_info){
+        //                         .msg_info = &msg,
+        //                         .msg_data = (uint8_t *)(blk->txt + k),
+        //                         .msg_data_len = txt_len,
+        //                         .total_pdu_len = 0,        // not used
+        //                         .seq_num = down ? msg.msn_seq - 'A' : msg.bid - 'A',
+        //                         .seq_num_first = down ? 0 : SEQ_FIRST_NONE,
+        //                         .seq_num_wrap = seq_num_wrap,
+        //                         .is_final_fragment = msg.be != 0x17,    // ETB means "more fragments"
+        //                         .rx_time = blk->tv,
+        //                         .reasm_timeout = down ? acars_reasm_timeout_downlink : acars_reasm_timeout_uplink
+        //                     });
+        //         }
+        //         uint8_t *reassembled_msg = NULL;
+        //         if(msg.reasm_status == LA_REASM_COMPLETE &&
+        //                 la_reasm_payload_get(acars_rtable, &msg, &reassembled_msg) > 0) {
+        //             // reassembled_msg is a newly allocated byte buffer, which is guaranteed to
+        //             // be NULL-terminated, so we can cast it to char * directly.
+        //             msg.txt = (char *)reassembled_msg;
+        //         } else {
+        // #endif // HAVE_LIBACARS
+        //             msg.txt = calloc(txt_len + 1, sizeof(char));
+        //             if(msg.txt && txt_len > 0) {
+        //                 memcpy(msg.txt, blk->txt + k, txt_len);
+        //             }
+        // #ifdef HAVE_LIBACARS
+        //         }
+        // #endif
+        //     } else { // empty message text
+        //         msg.txt = calloc(1, sizeof(char));
+        //     }
+
+        // #ifdef HAVE_LIBACARS
+        //     if(msg.txt != NULL && msg.txt[0] != '\0') {
+        //         bool decode_apps = true;
+        //         // Inhibit higher layer application decoding if reassembly is enabled and
+        //         // is now in progress (ie. the message is not yet complete)
+        //         if(reasm_ctx != NULL && (msg.reasm_status == LA_REASM_IN_PROGRESS ||
+        //                 msg.reasm_status == LA_REASM_DUPLICATE)) {
+        //             decode_apps = false;
+        //         }
+        //         if(decode_apps) {
+        //             msg.decoded_tree = la_acars_apps_parse_and_reassemble(msg.addr, msg.label,
+        //                     msg.txt, msg_dir, reasm_ctx, blk->tv);
+        //         }
+        //     }
+        // #endif
+
+        //     if(outflg)
+        //         fl=addFlight(&msg,blk->chn,blk->tv);
+
+        //     if(emptymsg && ( msg.txt == NULL || msg.txt[0] == '\0'))
+        //             return;
+
+        //     if(jsonbuf) {
+        //         if(outtype == OUTTYPE_ROUTEJSON ) {
+        //             if(fl)
+        //                        jok=routejson(fl,blk->tv);
+        //         } else {
+        //             jok=buildjson(&msg, blk->chn, blk->tv);
+        //         }
+        //}
 
         trace!(
             "[{: <13}] Assembled Message: {:#?}",
