@@ -408,7 +408,6 @@ pub struct ACARSDecoder {
     h: [f32; FLENO],
     blk: Mskblks,
     output_channel: Option<UnboundedSender<AssembledACARSMessage>>,
-    assembled_messages: Vec<AssembledACARSMessage>,
 }
 
 impl Decoder for ACARSDecoder {
@@ -426,10 +425,6 @@ impl Decoder for ACARSDecoder {
 
     fn set_output_channel(&mut self, output_channel: UnboundedSender<AssembledACARSMessage>) {
         self.output_channel = Some(output_channel);
-    }
-
-    fn send_messages(&mut self) {
-        self.send_assemebled_messages();
     }
 }
 
@@ -465,15 +460,6 @@ impl ACARSDecoder {
             h,
             blk: Mskblks::new(),
             output_channel: None,
-            assembled_messages: Vec::new(),
-        }
-    }
-
-    fn send_assemebled_messages(&mut self) {
-        if let Some(ref mut output_channel) = self.output_channel {
-            if let Some(msg) = self.assembled_messages.pop() {
-                output_channel.send(msg).unwrap();
-            }
         }
     }
 
@@ -1111,6 +1097,8 @@ impl ACARSDecoder {
 
         //     if(outflg)
         //         fl=addFlight(&msg,blk->chn,blk->tv);
-        self.assembled_messages.push(output_message.clone());
+        if let Some(ref mut output_channel) = self.output_channel {
+            output_channel.send(output_message).unwrap();
+        }
     }
 }

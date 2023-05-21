@@ -27,6 +27,12 @@ impl OxideScanner {
     pub async fn run(self) {
         let mut valid_sdrs: u8 = 0;
         let (tx_channel, rx) = mpsc::unbounded_channel();
+        let mut output =
+            OxideOutput::new(self.enable_output_command_line, self.enable_output_zmq, rx);
+
+        tokio::spawn(async move {
+            output.monitor_receiver_channel().await;
+        });
 
         for mut sdr in self.sdrs.into_iter() {
             info!("[OXIDE SCANNER] Opening SDR {}", sdr.get_serial());
@@ -49,12 +55,5 @@ impl OxideScanner {
         }
 
         assert!(valid_sdrs > 0, "No valid SDRs found. Exiting program.");
-
-        let mut output =
-            OxideOutput::new(self.enable_output_command_line, self.enable_output_zmq, rx);
-
-        tokio::spawn(async move {
-            output.monitor_receiver_channel().await;
-        });
     }
 }

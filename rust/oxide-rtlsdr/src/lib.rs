@@ -299,7 +299,6 @@ impl RtlSdr {
                         }
                         for channel in &mut self.channel {
                             channel.decode(rtloutbufz as u32);
-                            channel.send_messages();
                         }
                     })
                     .unwrap();
