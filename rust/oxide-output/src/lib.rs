@@ -25,6 +25,7 @@ impl OxideOutput {
     pub async fn monitor_receiver_channel(&mut self) {
         trace!("OxideOutput::monitor_receiver_channel() called");
         while let Some(message) = self.receiver_channel.recv().await {
+            println!("yooo");
             if self.output_command_line {
                 println!("{}", message);
             }
