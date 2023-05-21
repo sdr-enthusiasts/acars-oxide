@@ -6,7 +6,6 @@ use std::fmt::Formatter;
 use std::ops::Add;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
-use tokio::runtime::Runtime;
 use tokio::sync::mpsc::Sender;
 
 pub const INTRATE: i32 = 12500;
@@ -907,6 +906,8 @@ impl ACARSDecoder {
         self.generate_output_message();
     }
 
+    // disable the unused warning
+    #[allow(unused_must_use)]
     fn generate_output_message(&self) {
         trace!(
             "[{: <13}] Generating output message",
@@ -1101,20 +1102,10 @@ impl ACARSDecoder {
 
         match self.output_channel {
             Some(ref output_channel) => {
-                let rt = Runtime::new().unwrap();
                 trace!("Sending ACARS message to output channel");
-                let output_channel_new = output_channel.clone();
-                match rt.block_on(tokio::spawn(async move {
-                    output_channel_new
-                        .send(output_message.clone())
-                        .await
-                        .unwrap();
-                })) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        error!("Error sending ACARS message to output channel: {}", e);
-                    }
-                }
+
+                output_channel.send(output_message);
+
                 trace!("Sent ACARS message to output channel");
             }
             None => {
