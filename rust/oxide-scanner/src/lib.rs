@@ -26,7 +26,7 @@ impl OxideScanner {
 
     pub async fn run(self) {
         let mut valid_sdrs: u8 = 0;
-        let (tx_channel, rx) = mpsc::channel(32);
+        let (tx_channel, rx) = mpsc::unbounded_channel();
 
         for mut sdr in self.sdrs.into_iter() {
             info!("[OXIDE SCANNER] Opening SDR {}", sdr.get_serial());
@@ -35,7 +35,7 @@ impl OxideScanner {
                     valid_sdrs += 1;
                     info!("[OXIDE SCANNER] SDR {} opened", sdr.get_serial());
                     tokio::spawn(async move {
-                        sdr.read_samples();
+                        sdr.read_samples().await;
                     });
                 }
                 Err(e) => {

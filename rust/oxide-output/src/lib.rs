@@ -1,19 +1,19 @@
 use oxide_decoders::decoders::acars::AssembledACARSMessage;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::UnboundedReceiver;
 #[macro_use]
 extern crate log;
 
 pub struct OxideOutput {
     output_command_line: bool,
     enable_zmq: bool,
-    receiver_channel: Receiver<AssembledACARSMessage>, // TODO: This is hard coded to a single message type. We need to make this generic.
+    receiver_channel: UnboundedReceiver<AssembledACARSMessage>, // TODO: This is hard coded to a single message type. We need to make this generic.
 }
 
 impl OxideOutput {
     pub fn new(
         enable_output_command_line: bool,
         enable_output_zmq: bool,
-        receiver_channel: Receiver<AssembledACARSMessage>,
+        receiver_channel: UnboundedReceiver<AssembledACARSMessage>,
     ) -> OxideOutput {
         OxideOutput {
             output_command_line: enable_output_command_line,

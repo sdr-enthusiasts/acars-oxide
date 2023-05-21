@@ -6,9 +6,7 @@ use std::fmt::Formatter;
 use std::ops::Add;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
-use tokio::runtime::Handle;
-
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::UnboundedSender;
 
 pub const INTRATE: i32 = 12500;
 pub const RTLOUTBUFSZ: usize = 1024;
@@ -409,7 +407,8 @@ pub struct ACARSDecoder {
     acars_state: ACARSState,
     h: [f32; FLENO],
     blk: Mskblks,
-    output_channel: Option<Sender<AssembledACARSMessage>>,
+    output_channel: Option<UnboundedSender<AssembledACARSMessage>>,
+    assembled_messages: Vec<AssembledACARSMessage>,
 }
 
 impl Decoder for ACARSDecoder {
@@ -425,8 +424,12 @@ impl Decoder for ACARSDecoder {
         self.dm_buffer[index] = value;
     }
 
-    fn set_output_channel(&mut self, output_channel: Sender<AssembledACARSMessage>) {
+    fn set_output_channel(&mut self, output_channel: UnboundedSender<AssembledACARSMessage>) {
         self.output_channel = Some(output_channel);
+    }
+
+    fn send_messages(&mut self) {
+        self.send_assemebled_messages();
     }
 }
 
@@ -462,6 +465,15 @@ impl ACARSDecoder {
             h,
             blk: Mskblks::new(),
             output_channel: None,
+            assembled_messages: Vec::new(),
+        }
+    }
+
+    fn send_assemebled_messages(&mut self) {
+        if let Some(ref mut output_channel) = self.output_channel {
+            if let Some(msg) = self.assembled_messages.pop() {
+                output_channel.send(msg).unwrap();
+            }
         }
     }
 
@@ -908,9 +920,7 @@ impl ACARSDecoder {
         self.generate_output_message();
     }
 
-    // disable the unused warning
-    #[allow(unused_must_use)]
-    fn generate_output_message(&self) {
+    fn generate_output_message(&mut self) {
         trace!(
             "[{: <13}] Generating output message",
             format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
@@ -1101,20 +1111,6 @@ impl ACARSDecoder {
 
         //     if(outflg)
         //         fl=addFlight(&msg,blk->chn,blk->tv);
-
-        match self.output_channel {
-            Some(ref output_channel) => {
-                trace!("Sending ACARS message to output channel");
-
-                let handle = Handle::current();
-                handle.enter();
-                futures::executor::block_on(output_channel.send(output_message));
-
-                trace!("Sent ACARS message to output channel");
-            }
-            None => {
-                error!("No output channel set for ACARS decoder");
-            }
-        }
+        self.assembled_messages.push(output_message.clone());
     }
 }

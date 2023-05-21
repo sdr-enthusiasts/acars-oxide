@@ -4,7 +4,7 @@ use oxide_decoders::decoders::acars::ACARSDecoder;
 use oxide_decoders::decoders::acars::{self, AssembledACARSMessage};
 use oxide_decoders::{Decoder, ValidDecoderType};
 use rtlsdr_mt::{Controller, Reader};
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::UnboundedSender;
 
 extern crate libc;
 
@@ -78,7 +78,7 @@ impl RtlSdr {
 
     pub fn open_sdr(
         &mut self,
-        output_channel: Sender<AssembledACARSMessage>,
+        output_channel: UnboundedSender<AssembledACARSMessage>,
     ) -> Result<(), RTLSDRError> {
         let mut device_index = None;
         for dev in devices() {
@@ -262,7 +262,7 @@ impl RtlSdr {
         }
     }
 
-    pub fn read_samples(mut self) {
+    pub async fn read_samples(mut self) {
         let rtloutbufz = self.get_rtloutbufsz();
         let buffer_len: u32 = rtloutbufz as u32 * self.rtl_mult as u32 * 2;
         let mut vb: [num::Complex<f32>; 320] = [num::complex::Complex::new(0.0, 0.0); 320];
@@ -275,7 +275,7 @@ impl RtlSdr {
 
             Some(mut reader) => {
                 reader
-                    .read_async(4, buffer_len, |bytes| {
+                    .read_async(4, buffer_len, |bytes: &[u8]| {
                         counter = 0;
                         for m in 0..rtloutbufz {
                             for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
@@ -297,9 +297,9 @@ impl RtlSdr {
                                 channel.set_dm_buffer_at_index(m, d.norm());
                             }
                         }
-
                         for channel in &mut self.channel {
                             channel.decode(rtloutbufz as u32);
+                            channel.send_messages();
                         }
                     })
                     .unwrap();
