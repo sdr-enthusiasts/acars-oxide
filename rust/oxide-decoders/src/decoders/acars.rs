@@ -1,12 +1,12 @@
 use crate::Decoder;
 use custom_error::custom_error;
-use futures::executor::block_on;
 use num::Complex;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::ops::Add;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
+use tokio::runtime::Runtime;
 use tokio::sync::mpsc::Sender;
 
 pub const INTRATE: i32 = 12500;
@@ -407,6 +407,7 @@ pub struct ACARSDecoder {
     h: [f32; FLENO],
     blk: Mskblks,
     output_channel: Option<Sender<AssembledACARSMessage>>,
+    runtime: Runtime,
 }
 
 impl Decoder for ACARSDecoder {
@@ -459,6 +460,7 @@ impl ACARSDecoder {
             h,
             blk: Mskblks::new(),
             output_channel: None,
+            runtime: Runtime::new().unwrap(),
         }
     }
 
@@ -1100,7 +1102,9 @@ impl ACARSDecoder {
         match self.output_channel {
             Some(ref output_channel) => {
                 trace!("Sending ACARS message to output channel");
-                block_on(output_channel.send(output_message)).unwrap();
+                self.runtime
+                    .block_on(output_channel.send(output_message))
+                    .unwrap();
                 trace!("Sent ACARS message to output channel");
             }
             None => {
