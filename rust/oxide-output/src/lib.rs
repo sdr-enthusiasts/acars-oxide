@@ -31,7 +31,6 @@ impl OxideOutput {
                     } else {
                         debug!("[{: <13}] {}", "OUT CHANNEL", message);
                     }
-                    info!("{}", message);
 
                     if self.enable_zmq {
                         error!("[{: <13}] ZMQ output not implemented yet", "OUT CHANNEL");
