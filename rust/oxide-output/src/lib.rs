@@ -23,17 +23,24 @@ impl OxideOutput {
     }
 
     pub async fn monitor_receiver_channel(&mut self) {
-        trace!("OxideOutput::monitor_receiver_channel() called");
+        loop {
+            match self.receiver_channel.try_recv() {
+                Ok(message) => {
+                    if self.output_command_line {
+                        info!("[{: <13}] {}", "OUT CHANNEL", message);
+                    } else {
+                        debug!("[{: <13}] {}", "OUT CHANNEL", message);
+                    }
+                    info!("{}", message);
 
-        while let Some(message) = self.receiver_channel.recv().await {
-            println!("yooo");
-            if self.output_command_line {
-                println!("{}", message);
-            }
-            if self.enable_zmq {
-                error!("ZMQ output not implemented yet");
+                    if self.enable_zmq {
+                        error!("[{: <13}] ZMQ output not implemented yet", "OUT CHANNEL");
+                    }
+                }
+                Err(_) => {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                }
             }
         }
-        trace!("Exiting OxideOutput::monitor_receiver_channel()");
     }
 }

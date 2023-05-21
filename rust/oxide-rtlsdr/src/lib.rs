@@ -232,7 +232,8 @@ impl RtlSdr {
                     for (ind, window_value) in channel_windows[i].iter().enumerate() {
                         window_array[ind] = *window_value;
                     }
-                    let mut out_channel = ACARSDecoder::new(i as i32, channels[i], window_array);
+                    let mut out_channel: ACARSDecoder =
+                        ACARSDecoder::new(i as i32, channels[i], window_array);
                     out_channel.set_output_channel(output_channel.clone());
 
                     self.channel.push(Box::new(out_channel));

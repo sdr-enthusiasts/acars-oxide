@@ -595,6 +595,11 @@ impl ACARSDecoder {
                     "[{: <13}] SOH1",
                     format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
                 );
+                // let test = AssembledACARSMessage::new();
+                // if let Some(ref mut output_channel) = self.output_channel {
+                //     trace!("sending");
+                //     output_channel.send(test).unwrap();
+                // }
                 if self.outbits == SOH {
                     if self.blk.init {
                         self.blk.reset();
