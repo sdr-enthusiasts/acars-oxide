@@ -263,17 +263,17 @@ impl Display for AssembledACARSMessage {
             f,
             "mode: {}, addr: {}, ack: {}, label: {}, bid: {}, no: {}, fid: {}, sublabel: {}, mfi: {}, bs: {}, be: {}, txt: {}, err: {}, lvl: {}",
             self.mode,
-            self.addr.iter().collect::<String>(),
+            self.addr.iter().collect::<String>().trim(),
             self.ack,
-            self.label.iter().collect::<String>(),
+            self.label.iter().collect::<String>().trim(),
             self.bid,
-            self.no.iter().collect::<String>(),
-            self.fid.iter().collect::<String>(),
-            self.sublabel.iter().collect::<String>(),
-            self.mfi.iter().collect::<String>(),
+            self.no.iter().collect::<String>().trim(),
+            self.fid.iter().collect::<String>().trim(),
+            self.sublabel.iter().collect::<String>().trim(),
+            self.mfi.iter().collect::<String>().trim(),
             self.bs,
             self.be,
-            self.txt.iter().collect::<String>(),
+            self.txt.iter().collect::<String>().trim(),
             self.err,
             self.lvl
         )
@@ -876,9 +876,6 @@ impl ACARSDecoder {
         self.generate_output_message();
     }
 
-    #[allow(dead_code)]
-    #[allow(unused_variables)]
-    #[allow(unused_assignments)]
     fn generate_output_message(&self) {
         trace!(
             "[{: <13}] Generating output message",
@@ -892,7 +889,7 @@ impl ACARSDecoder {
         let mut k: usize = 0;
         let mut j: usize = 0;
         let mut i: usize = 0;
-        let mut outflg: bool = false;
+        //let mut outflg: bool = false;
         output_message.mode = self.blk.txt[k] as char;
         k += 1;
 
@@ -948,10 +945,6 @@ impl ACARSDecoder {
         if output_message.bs != 0x03 as char {
             if is_downlink {
                 /* message no */
-                // for (i = 0; i < 4 && k < blk->len - 1; i++, k++) {
-                //     msg.no[i] = blk->txt[k];
-                // }
-
                 while i < 4 && k < self.blk.len as usize - 1 {
                     output_message.no[i] = self.blk.txt[k] as char;
                     i += 1;
@@ -981,7 +974,7 @@ impl ACARSDecoder {
 
                 output_message.fid[i] = '\0';
 
-                outflg = true;
+                //outflg = true;
             }
 
             let txt_len = self.blk.len as usize - k - 1;
@@ -1075,15 +1068,6 @@ impl ACARSDecoder {
 
         //     if(outflg)
         //         fl=addFlight(&msg,blk->chn,blk->tv);
-
-        //     if(jsonbuf) {
-        //         if(outtype == OUTTYPE_ROUTEJSON ) {
-        //             if(fl)
-        //                        jok=routejson(fl,blk->tv);
-        //         } else {
-        //             jok=buildjson(&msg, blk->chn, blk->tv);
-        //         }
-        //}
 
         trace!(
             "[{: <13}] Assembled Message: {}",
