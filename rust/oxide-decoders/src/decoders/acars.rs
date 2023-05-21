@@ -407,7 +407,6 @@ pub struct ACARSDecoder {
     h: [f32; FLENO],
     blk: Mskblks,
     output_channel: Option<Sender<AssembledACARSMessage>>,
-    runtime: Runtime,
 }
 
 impl Decoder for ACARSDecoder {
@@ -460,7 +459,6 @@ impl ACARSDecoder {
             h,
             blk: Mskblks::new(),
             output_channel: None,
-            runtime: Runtime::new().unwrap(),
         }
     }
 
@@ -1101,10 +1099,9 @@ impl ACARSDecoder {
 
         match self.output_channel {
             Some(ref output_channel) => {
+                let rt = Runtime::new().unwrap();
                 trace!("Sending ACARS message to output channel");
-                self.runtime
-                    .block_on(output_channel.send(output_message))
-                    .unwrap();
+                rt.block_on(output_channel.send(output_message)).unwrap();
                 trace!("Sent ACARS message to output channel");
             }
             None => {
