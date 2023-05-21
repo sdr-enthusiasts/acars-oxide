@@ -236,6 +236,45 @@ enum ACARSState {
     Crc2,
     End,
 }
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct AssembledACARSMessage {
+    mode: char,
+    addr: [char; 8],
+    ack: char,
+    label: [char; 3],
+    bid: char,
+    no: [char; 5],
+    fid: [char; 7],
+    sublabel: [char; 3],
+    mfi: [char; 3],
+    bs: char,
+    be: char,
+    txt: [char; 250],
+    err: u8,
+    lvl: f32,
+}
+
+impl AssembledACARSMessage {
+    fn new() -> Self {
+        Self {
+            mode: ' ',
+            addr: [' '; 8],
+            ack: ' ',
+            label: [' '; 3],
+            bid: ' ',
+            no: [' '; 5],
+            fid: [' '; 7],
+            sublabel: [' '; 3],
+            mfi: [' '; 3],
+            bs: ' ',
+            be: ' ',
+            txt: [' '; 250],
+            err: 0,
+            lvl: 0.0,
+        }
+    }
+}
 
 struct Mskblks {
     chn: i32,
@@ -814,8 +853,54 @@ impl ACARSDecoder {
 
     fn generate_output_message(&self) {
         trace!(
-            "[{: <13}] Generating output message. NOT IMPLEMENTED",
+            "[{: <13}] Generating output message",
             format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+        );
+
+        let mut output_message = AssembledACARSMessage::new();
+        output_message.lvl = self.blk.lvl;
+        output_message.err = self.blk.err as u8;
+
+        let mut k: usize = 0;
+        let mut j: usize = 0;
+        output_message.mode = self.blk.txt[k] as char;
+        k += 1;
+
+        for _ in 0..7_usize {
+            if self.blk.txt[k] != b'.' {
+                output_message.addr[j] = self.blk.txt[k] as char;
+                j += 1;
+            }
+            k += 1;
+        }
+
+        output_message.addr[j] = '\0';
+
+        //     /* ACK/NAK */
+        output_message.ack = self.blk.txt[k] as char;
+        if output_message.ack == 0x15 as char
+        // NAK is nonprintable
+        {
+            output_message.ack = '!';
+        }
+
+        k += 1;
+
+        output_message.label[0] = self.blk.txt[k] as char;
+        k += 1;
+        output_message.label[1] = self.blk.txt[k] as char;
+        if output_message.label[1] == 0x7f as char {
+            output_message.label[1] = 'd';
+        }
+        k += 1;
+        output_message.label[2] = '\0';
+
+        output_message.bid = self.blk.txt[k] as char;
+
+        trace!(
+            "[{: <13}] Assembled Message: {:#?}",
+            format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+            output_message
         );
     }
 }
