@@ -238,16 +238,31 @@ enum ACARSState {
     Crc2,
     End,
 }
+
+#[derive(Debug)]
+enum DownlinkStatus {
+    AirToGround,
+    GroundToAir,
+}
+
+impl Display for DownlinkStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DownlinkStatus::AirToGround => write!(f, "Air to Ground"),
+            DownlinkStatus::GroundToAir => write!(f, "Ground to Air"),
+        }
+    }
+}
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct AssembledACARSMessage {
     mode: char,
-    addr: [char; 8],
+    tail_addr: [char; 8],
     ack: char,
     label: [char; 3],
     bid: char,
     no: [char; 5],
-    fid: [char; 7],
+    flight_id: [char; 7],
     sublabel: [char; 3],
     mfi: [char; 3],
     bs: char,
@@ -255,20 +270,22 @@ pub struct AssembledACARSMessage {
     txt: Vec<char>,
     err: u8,
     lvl: f32,
+    downlink_status: DownlinkStatus,
 }
 
 impl Display for AssembledACARSMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "mode: {}, addr: {}, ack: {}, label: {}, bid: {}, no: {}, fid: {}, sublabel: {}, mfi: {}, bs: {}, be: {}, txt: {}, err: {}, lvl: {}",
+            "mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {}, mfi: {}, bs: {}, be: {}, txt: {}, err: {}, lvl: {}",
             self.mode,
-            self.addr.iter().collect::<String>().trim(),
+            self.tail_addr.iter().collect::<String>().trim(),
+            self.downlink_status,
             self.ack,
             self.label.iter().collect::<String>().trim(),
             self.bid,
             self.no.iter().collect::<String>().trim(),
-            self.fid.iter().collect::<String>().trim(),
+            self.flight_id.iter().collect::<String>().trim(),
             self.sublabel.iter().collect::<String>().trim(),
             self.mfi.iter().collect::<String>().trim(),
             self.bs,
@@ -284,12 +301,13 @@ impl AssembledACARSMessage {
     fn new() -> Self {
         Self {
             mode: ' ',
-            addr: [' '; 8],
+            tail_addr: [' '; 8],
+            downlink_status: DownlinkStatus::AirToGround,
             ack: ' ',
             label: [' '; 3],
             bid: ' ',
             no: [' '; 5],
-            fid: [' '; 7],
+            flight_id: [' '; 7],
             sublabel: [' '; 3],
             mfi: [' '; 3],
             bs: ' ',
@@ -895,13 +913,13 @@ impl ACARSDecoder {
 
         for _ in 0..7_usize {
             if self.blk.txt[k] != b'.' {
-                output_message.addr[j] = self.blk.txt[k] as char;
+                output_message.tail_addr[j] = self.blk.txt[k] as char;
                 j += 1;
             }
             k += 1;
         }
 
-        output_message.addr[j] = '\0';
+        output_message.tail_addr[j] = '\0';
 
         //     /* ACK/NAK */
         output_message.ack = self.blk.txt[k] as char;
@@ -930,13 +948,11 @@ impl ACARSDecoder {
         let is_downlink: bool =
             ((output_message.bid as u8) >= b'0') && ((output_message.bid as u8) <= b'9');
 
-        // libacars step. Skipping for now
-        // TODO: Don't skip
-
-        //     #ifdef HAVE_LIBACARS
-        //     la_msg_dir msg_dir = down ? LA_MSG_DIR_AIR2GND : LA_MSG_DIR_GND2AIR;
-        //     msg.reasm_status = LA_REASM_SKIPPED;    // default value (valid for message with empty text)
-        // #endif
+        if is_downlink {
+            output_message.downlink_status = DownlinkStatus::AirToGround;
+        } else {
+            output_message.downlink_status = DownlinkStatus::GroundToAir;
+        }
 
         output_message.bs = self.blk.txt[k] as char;
         k += 1;
@@ -967,12 +983,12 @@ impl ACARSDecoder {
                 // }
                 i = 0;
                 while i < 6 && k < self.blk.len as usize - 1 {
-                    output_message.fid[i] = self.blk.txt[k] as char;
+                    output_message.flight_id[i] = self.blk.txt[k] as char;
                     i += 1;
                     k += 1;
                 }
 
-                output_message.fid[i] = '\0';
+                output_message.flight_id[i] = '\0';
 
                 //outflg = true;
             }
