@@ -230,7 +230,7 @@ custom_error! {pub ACARSDecodingError
     FixPR = "Not able to fix PR Error",
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum ACARSState {
     Wsyn,
     Syn2,
@@ -241,7 +241,7 @@ enum ACARSState {
     End,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum DownlinkStatus {
     AirToGround,
     GroundToAir,
@@ -255,7 +255,7 @@ impl Display for DownlinkStatus {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct AssembledACARSMessage {
     mode: char,
@@ -324,6 +324,7 @@ impl AssembledACARSMessage {
     }
 }
 
+#[derive(Clone)]
 struct Mskblks {
     chn: i32,
     timeval: u64,
@@ -388,6 +389,7 @@ impl Mskblks {
     }
 }
 
+#[derive(Clone)]
 pub struct ACARSDecoder {
     channel_number: i32,
     freq: i32,
@@ -1101,8 +1103,18 @@ impl ACARSDecoder {
             Some(ref output_channel) => {
                 let rt = Runtime::new().unwrap();
                 trace!("Sending ACARS message to output channel");
-                rt.block_on(output_channel.send(output_message))
-                    .expect("Failed to send ACARS message to output channel");
+                let output_channel_new = output_channel.clone();
+                match rt.block_on(tokio::spawn(async move {
+                    output_channel_new
+                        .send(output_message.clone())
+                        .await
+                        .unwrap();
+                })) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        error!("Error sending ACARS message to output channel: {}", e);
+                    }
+                }
                 trace!("Sent ACARS message to output channel");
             }
             None => {
