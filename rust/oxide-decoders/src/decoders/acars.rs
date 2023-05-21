@@ -1101,6 +1101,7 @@ impl ACARSDecoder {
             Some(ref output_channel) => {
                 trace!("Sending ACARS message to output channel");
                 block_on(output_channel.send(output_message)).unwrap();
+                trace!("Sent ACARS message to output channel");
             }
             None => {
                 error!("No output channel set for ACARS decoder");
