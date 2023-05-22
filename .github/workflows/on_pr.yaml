@@ -221,15 +221,15 @@ jobs:
           context: .
           push: false
           file: Dockerfile.build_binary
-          tags: acars_oxide:amd64
+          tags: acars-oxide:amd64
           platforms: linux/amd64
-          outputs: type=local,dest=./oxide_image_amd64/
+          outputs: type=local,dest=./image_amd64/
 
       - name: Upload artifact amd64 binary
         uses: actions/upload-artifact@v3
         with:
-          name: acars_oxide.amd64
-          path: ./oxide_image_amd64/acars-oxide
+          name: acars-oxide.amd64
+          path: ./image_amd64/acars-oxide
 
   consolidate_binaries:
     name: Consolidate & Cache Binaries
