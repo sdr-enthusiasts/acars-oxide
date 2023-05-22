@@ -47,7 +47,7 @@ pub struct RtlSdr {
     bias_tee: bool,
     rtl_mult: i32,
     frequencies: Vec<f32>,
-    channel: Vec<Box<dyn Decoder>>,
+    channel: [Box<dyn Decoder>; 16],
     decoder_type: ValidDecoderType,
 }
 
@@ -62,6 +62,17 @@ impl RtlSdr {
         decoder: ValidDecoderType,
     ) -> RtlSdr {
         frequencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let mut channels: Vec<Box<dyn Decoder>> = Vec::new();
+
+        // FIXME: This feels so wasteful to create 16 decoders when we only need 1 or 2
+        // But the array needs to be filled. Can we do better?
+        for _ in 0..16_usize {
+            channels.push(Box::new(ACARSDecoder::new(
+                0,
+                0,
+                [num::complex::Complex::new(0.0, 0.0); 192],
+            )));
+        }
 
         Self {
             ctl: None,
@@ -73,7 +84,8 @@ impl RtlSdr {
             bias_tee,
             rtl_mult,
             frequencies,
-            channel: vec![],
+            // array_init::array_init(|i: usize| (i * i) as u32);
+            channel: array_init::from_iter(channels.into_iter()).unwrap(),
             decoder_type: decoder,
         }
     }
@@ -252,7 +264,7 @@ impl RtlSdr {
                         ACARSDecoder::new(i as i32, channels[i], window_array);
                     out_channel.set_output_channel(output_channel.clone());
 
-                    self.channel.push(Box::new(out_channel));
+                    self.channel[i] = Box::new(out_channel);
                 }
 
                 info!(
@@ -294,6 +306,7 @@ impl RtlSdr {
                 reader
                     .read_async(4, buffer_len, |bytes: &[u8]| {
                         counter = 0;
+
                         for m in 0..rtloutbufz {
                             for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
                                 *vb_item = (bytes[counter] as f32 - 127.37)
@@ -302,7 +315,8 @@ impl RtlSdr {
                                 counter += 2;
                             }
 
-                            for channel in &mut self.channel {
+                            for channel in &mut self.channel.iter_mut().take(self.frequencies.len())
+                            {
                                 let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
 
                                 for (ind, vb_item) in
@@ -314,7 +328,7 @@ impl RtlSdr {
                                 channel.set_dm_buffer_at_index(m, d.norm());
                             }
                         }
-                        for channel in &mut self.channel {
+                        for channel in &mut self.channel.iter_mut().take(self.frequencies.len()) {
                             channel.decode(rtloutbufz as u32);
                         }
                     })
