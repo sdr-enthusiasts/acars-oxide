@@ -1,0 +1,34 @@
+FROM rust:1.69.0-bullseye as builder
+WORKDIR /tmp/acars_oxide
+# hadolint ignore=DL3008,DL3003,SC1091
+RUN set -x && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends libzmq3-dev librtlsdr-dev
+COPY . .
+
+RUN cargo build --release
+
+FROM ghcr.io/sdr-enthusiasts/docker-baseimage:rtlsdr
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+COPY rootfs /
+COPY --from=builder /tmp/acars_oxide/target/release/acars-oxide /opt/acars-oxide
+# hadolint ignore=DL3008,DL3003,SC1091
+RUN set -x && \
+    KEPT_PACKAGES=() && \
+    TEMP_PACKAGES=() && \
+    KEPT_PACKAGES+=(libzmq5) && \
+    KEPT_PACKAGES+=(librtlsdr-dev) && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    "${KEPT_PACKAGES[@]}" \
+    "${TEMP_PACKAGES[@]}"\
+    && \
+    # ensure binaries are executable
+    chmod -v a+x \
+    /opt/acars-oxide \
+    && \
+    # clean up
+    apt-get remove -y "${TEMP_PACKAGES[@]}" && \
+    apt-get autoremove -y && \
+    rm -rf /src/* /tmp/* /var/lib/apt/lists/*

@@ -804,7 +804,7 @@ impl ACARSDecoder {
         // handle message
         if self.blk.len() < 13 {
             // too short
-            info!(
+            error!(
                 "[{: <13}] Message too short",
                 format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
             );

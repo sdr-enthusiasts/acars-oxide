@@ -110,7 +110,7 @@ impl RtlSdr {
             }
             Some(idx) => {
                 self.index = Some(idx);
-                info!("[{: <13}] Using Found device at index {}", self.serial, idx);
+                info!("[{: <13}] Using found device at index {}", self.serial, idx);
 
                 let (mut ctl, reader) = rtlsdr_mt::open(self.index.unwrap()).unwrap();
 
