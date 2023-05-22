@@ -28,6 +28,10 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - name: Install Rust and deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libzmq3-dev librtlsdr-dev
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -58,6 +62,10 @@ jobs:
           toolchain: stable
           components: clippy
           override: true
+      - name: Install Rust and deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libzmq3-dev librtlsdr-dev
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -157,8 +165,8 @@ jobs:
       - name: Run Docker on tmpfs
         uses: JonasAlfredsson/docker-on-tmpfs@v1
         with:
-          tmpfs_size: 5
-          swap_size: 4
+          tmpfs_size: 10
+          swap_size: 10
           swap_location: "/mnt/swapfile"
 
       - name: Set up QEMU
