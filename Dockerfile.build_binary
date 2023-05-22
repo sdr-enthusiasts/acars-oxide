@@ -8,3 +8,6 @@ RUN set -x && \
 COPY . .
 
 RUN cargo build --release
+
+FROM scratch
+COPY --from=builder /tmp/acars_oxide/target/release/acars-oxide /acars-oxide
