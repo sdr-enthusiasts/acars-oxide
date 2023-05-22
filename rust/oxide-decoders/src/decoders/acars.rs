@@ -295,7 +295,7 @@ impl Display for AssembledACARSMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {}, mfi: {}, bs: {}, be: {}, txt: {}, err: {}, lvl: {}",
+            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {}, mfi: {}, txt: {}, err: {}, lvl: {}",
             self.frequency,
             self.mode,
             self.tail_addr.iter().collect::<String>().trim(),
@@ -307,8 +307,6 @@ impl Display for AssembledACARSMessage {
             self.flight_id.iter().collect::<String>().trim(),
             self.sublabel.iter().collect::<String>().trim(),
             self.mfi.iter().collect::<String>().trim(),
-            self.bs,
-            self.be,
             self.txt.iter().collect::<String>().trim(),
             self.err,
             self.lvl
@@ -858,7 +856,11 @@ impl ACARSDecoder {
         crc = self.update_crc(crc, self.blk.crc[0] as u32);
         crc = self.update_crc(crc, self.blk.crc[1] as u32);
         if crc != 0 {
-            error!("{} crc error", self.blk.chn + 1);
+            error!(
+                "[{: <13}] {} crc error",
+                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+                self.blk.chn + 1
+            );
         } else {
             trace!(
                 "[{: <13}] CRC OK",
@@ -866,6 +868,7 @@ impl ACARSDecoder {
             );
         }
 
+        // TODO: Fix Error correcting. It seems broken.
         /* try to fix error */
         if pn > 0 {
             match self.fixprerr(crc, &pr, 0, pn) {
