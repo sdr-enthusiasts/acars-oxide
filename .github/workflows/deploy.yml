@@ -218,9 +218,9 @@ jobs:
           # Make release tarballs
           mkdir -vp ./release
           pushd ./bin
-          tar cJvf "$ORIGDIR/release/acars-oxide.amd64.tar.xz" ./bin/acars-oxide.amd64
-          tar cJvf "$ORIGDIR/release/acars-oxide.armv7.tar.xz" ./bin/acars-oxide.armv7
-          tar cJvf "$ORIGDIR/release/acars-oxide.arm64.tar.xz" ./bin/acars-oxide.arm64
+          tar cJvf "$ORIGDIR/release/acars-oxide.amd64.tar.xz" ./acars-oxide.amd64
+          tar cJvf "$ORIGDIR/release/acars-oxide.armv7.tar.xz" ./acars-oxide.armv7
+          tar cJvf "$ORIGDIR/release/acars-oxide.arm64.tar.xz" ./acars-oxide.arm64
           popd
 
       - name: Get binary version from Cargo.toml
