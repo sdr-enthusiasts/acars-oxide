@@ -1,0 +1,262 @@
+---
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        required: true
+        description: "Reason for running this workflow"
+  push:
+    branches:
+      - main
+
+    # Don't trigger if it's just a documentation update
+    paths-ignore:
+      - "**.md"
+      - "**.MD"
+      - "**.yml"
+      - "**.yaml"
+      - "LICENSE"
+      - ".gitattributes"
+      - ".gitignore"
+      - ".dockerignore"
+
+jobs:
+  workflow-dispatch:
+    name: Workflow Dispatch
+    # only run this step if workflow dispatch triggered
+    # log the reason the workflow dispatch was triggered
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.reason != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log dispatch reason
+        env:
+          INPUTS_REASON: ${{ github.event.inputs.reason }}
+        run: |
+          echo "Workflow dispatch reason: $INPUTS_REASON"
+          echo "::notice title=${{ github.job }}: Workflow Dispatch Reason::${INPUTS_REASON}"
+
+  binary_build_armv7:
+    name: Build Binary - armv7
+    runs-on: ubuntu-latest
+    # needs: test_rust_functionality
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+        with:
+          fetch-depth: 0
+
+      - name: Run Docker on tmpfs
+        uses: JonasAlfredsson/docker-on-tmpfs@v1
+        with:
+          tmpfs_size: 5
+          swap_size: 4
+          swap_location: "/mnt/swapfile"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build armv7
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          file: Dockerfile.build_binary
+          tags: acars-oxide:armv7
+          platforms: linux/arm/v7
+          outputs: type=local,dest=./image_armv7/
+
+      - name: Upload artifact armv7 binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: acars-oxide.armv7
+          path: ./image_armv7/acars-oxide
+
+  binary_build_arm64:
+    name: Build Binary - arm64
+    runs-on: ubuntu-latest
+    # needs: test_rust_functionality
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+        with:
+          fetch-depth: 0
+
+      - name: Run Docker on tmpfs
+        uses: JonasAlfredsson/docker-on-tmpfs@v1
+        with:
+          tmpfs_size: 5
+          swap_size: 4
+          swap_location: "/mnt/swapfile"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build arm64
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          file: Dockerfile.build_binary
+          tags: acars-oxide:arm64
+          platforms: linux/arm64
+          outputs: type=local,dest=./image_arm64/
+
+      - name: Upload artifact arm64 binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: acars-oxide.arm64
+          path: ./image_arm64/acars-oxide
+
+  binary_build_amd64:
+    name: Build Binary - amd64
+    runs-on: ubuntu-latest
+    # needs: test_rust_functionality
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+        with:
+          fetch-depth: 0
+
+      - name: Run Docker on tmpfs
+        uses: JonasAlfredsson/docker-on-tmpfs@v1
+        with:
+          tmpfs_size: 5
+          swap_size: 4
+          swap_location: "/mnt/swapfile"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build amd64
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          file: Dockerfile.build_binary
+          tags: acars-oxide:amd64
+          platforms: linux/amd64
+          outputs: type=local,dest=./image_amd64/
+
+      - name: Upload artifact amd64 binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: acars-oxide.amd64
+          path: ./image_amd64/acars-oxide
+
+  consolidate_binaries:
+    name: Consolidate & Cache Binaries
+    runs-on: ubuntu-latest
+    needs: [binary_build_amd64, binary_build_arm64, binary_build_armv7]
+    steps:
+      - run: mkdir -p ./bin
+
+      - uses: actions/download-artifact@master
+        with:
+          name: acars-oxide.amd64
+          path: ./bin/acars-oxide.amd64
+
+      - uses: actions/download-artifact@master
+        with:
+          name: acars-oxide.armv7
+          path: ./bin/acars-oxide.armv7
+
+      - uses: actions/download-artifact@master
+        with:
+          name: acars-oxide.arm64
+          path: ./bin/acars-oxide.arm64
+
+      - run: ls -la ./bin/*
+
+      - name: Cache Binaries
+        uses: actions/cache@v3
+        with:
+          path: ./bin/
+          key: ${{ github.run_id }}
+
+  release_binaries:
+    name: Release Binaries
+    needs:
+      [
+        binary_build_amd64,
+        binary_build_arm64,
+        binary_build_armv7,
+        consolidate_binaries,
+      ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+        with:
+          fetch-depth: 0
+
+      - name: Cache cargo build output
+        id: get_cache
+        uses: actions/cache@v3
+        with:
+          path: ./bin/
+          key: ${{ github.run_id }}
+
+      - name: Prepare binary release tarballs
+        run: |
+          ORIGDIR=$(pwd)
+          # Make release tarballs
+          mkdir -vp ./release
+          pushd ./bin
+          tar cJvf "$ORIGDIR/release/acars-oxide.amd64.tar.xz" ./bin/acars-oxide.amd64
+          tar cJvf "$ORIGDIR/release/acars-oxide.armv7.tar.xz" ./bin/acars-oxide.armv7
+          tar cJvf "$ORIGDIR/release/acars-oxide.arm64.tar.xz" ./bin/acars-oxide.arm64
+          popd
+
+      - name: Get binary version from Cargo.toml
+        if: steps.get_cache.outputs.cache-hit == 'true'
+        id: release_version
+        run: |
+          # Get version from Cargo.toml
+          RELEASE_VERSION=$(cat ./Cargo.toml | grep '\[workspace.package\]' -A9999 | grep -m 1 'version = ' | tr -d " " | tr -d '"' | tr -d "'" | cut -d = -f 2)
+          echo "::set-output name=RELEASE_VERSION::$RELEASE_VERSION"
+
+      - name: Create binary release
+        uses: ncipollo/release-action@v1
+        with:
+          body: "See Commits"
+          allowUpdates: true
+          commit: ${{ github.ref }}
+          name: ${{ steps.release_version.outputs.RELEASE_VERSION }} Build ${{ github.run_number }}
+          tag: ${{ steps.release_version.outputs.RELEASE_VERSION }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    name: Deploy
+    needs: [consolidate_binaries]
+    uses: sdr-enthusiasts/common-github-workflows/.github/workflows/build_and_push_image.yml@main
+    with:
+      push_enabled: true
+      push_destinations: ghcr.io
+      ghcr_repo_owner: ${{ github.repository_owner }}
+      ghcr_repo: ${{ github.repository }}
+      build_with_tmpfs: true
+      get_version_method: cargo_toml_file_in_repo:file=/Cargo.toml
+      build_latest: true
+      build_version_specific: true
+      build_nohealthcheck: false
+      cache_enabled: true
+      cache_path: ./bin/
+      cache_key: ${{ github.run_id }}
+    secrets:
+      ghcr_token: ${{ secrets.GITHUB_TOKEN }}
