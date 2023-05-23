@@ -15,7 +15,8 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 use decoders::acars::AssembledACARSMessage;
-use num_complex::Complex;
+//use num_complex::Complex;
+use num::Complex;
 use tokio::sync::mpsc::UnboundedSender;
 
 #[macro_use]

@@ -16,7 +16,8 @@
 
 use crate::Decoder;
 use custom_error::custom_error;
-use num_complex::Complex;
+// use num_complex::Complex;
+use num::Complex;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::ops::Add;
@@ -482,7 +483,7 @@ impl ACARSDecoder {
 
         for in_ in &mut self.dm_buffer.into_iter().take(len) {
             let s: f32 = 1800.0 / INTRATE as f32 * 2.0 * std::f32::consts::PI + self.msk_df;
-            let mut v: Complex<f32> = num::Complex::new(0.0, 0.0);
+            let mut v: Complex<f32> = Complex::new(0.0, 0.0);
             let mut o: f32;
 
             /* VCO */
@@ -493,7 +494,7 @@ impl ACARSDecoder {
 
             /* mixer */
 
-            self.inb[self.idx as usize] = in_ * Complex::exp(-self.msk_phi * num::Complex::i());
+            self.inb[self.idx as usize] = in_ * Complex::exp(-self.msk_phi * Complex::i());
             self.idx = (self.idx + 1) % (FLEN as u32);
 
             /* bit clock */

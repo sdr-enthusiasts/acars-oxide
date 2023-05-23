@@ -16,7 +16,8 @@
 
 #[macro_use]
 extern crate log;
-use num_complex::Complex;
+// use num_complex::Complex;
+use num::Complex;
 use oxide_decoders::decoders::acars::ACARSDecoder;
 use oxide_decoders::decoders::acars::{self, AssembledACARSMessage};
 use oxide_decoders::{Decoder, ValidDecoderType};
@@ -246,7 +247,7 @@ impl RtlSdr {
                     let mut window: Vec<Complex<f32>> = vec![];
                     for i in 0..self.rtl_mult {
                         // ch->wf[ind]=cexpf(AMFreq*ind*-I)/rtlMult/127.5;
-                        let window_value = (am_freq * i as f32 * -num::complex::Complex::i()).exp()
+                        let window_value = (am_freq * i as f32 * -Complex::i()).exp()
                             / self.rtl_mult as f32
                             / 127.5;
                         window.push(window_value);
@@ -294,7 +295,7 @@ impl RtlSdr {
     pub async fn read_samples(mut self) {
         let rtloutbufz = self.get_rtloutbufsz();
         let buffer_len: u32 = rtloutbufz as u32 * self.rtl_mult as u32 * 2;
-        let mut vb: [Complex<f32>; 320] = [num::complex::Complex::new(0.0, 0.0); 320];
+        let mut vb: [Complex<f32>; 320] = [Complex::new(0.0, 0.0); 320];
 
         match self.reader {
             None => {
