@@ -94,7 +94,7 @@ impl RtlSdr {
 
     fn get_intrate(&self) -> i32 {
         match self.decoder_type {
-            ValidDecoderType::ACARS => acars::INTRATE,
+            ValidDecoderType::ACARS => acars::INTRATE as i32,
             ValidDecoderType::VDL2 => 0,
         }
     }

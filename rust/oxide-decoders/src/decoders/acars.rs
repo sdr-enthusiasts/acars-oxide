@@ -25,11 +25,11 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::UnboundedSender;
 
-pub const INTRATE: i32 = 12500;
+pub const INTRATE: usize = 12500;
 pub const RTLOUTBUFSZ: usize = 1024;
-const FLEN: i32 = (INTRATE / 1200) + 1;
+const FLEN: usize = (INTRATE / 1200) + 1;
 const MFLTOVER: usize = 12;
-const FLENO: usize = FLEN as usize * MFLTOVER + 1;
+const FLENO: usize = FLEN * MFLTOVER + 1;
 const PLLG: f32 = 38e-4;
 const PLLC: f32 = 0.52;
 const SYN: u8 = 0x16;
@@ -416,7 +416,7 @@ pub struct ACARSDecoder {
     msk_bit_count: i32,
     msk_s: u32,
     idx: u32,
-    inb: [Complex<f32>; FLEN as usize],
+    inb: [Complex<f32>; FLEN],
     outbits: u8, // original was unsigned char.....
     nbits: i32,
     acars_state: ACARSState,
@@ -468,7 +468,7 @@ impl ACARSDecoder {
             msk_bit_count: 0,
             msk_s: 0,
             idx: 0,
-            inb: [Complex::new(0.0, 0.0); FLEN as usize],
+            inb: [Complex::new(0.0, 0.0); FLEN],
             outbits: 0,
             nbits: 8,
             acars_state: ACARSState::Wsyn,
@@ -511,10 +511,8 @@ impl ACARSDecoder {
                     o = MFLTOVER as f32
                 };
 
-                for j in 0..FLEN as usize {
-                    v = v.add(
-                        self.h[o as usize] * self.inb[(j + self.idx as usize) % FLEN as usize],
-                    );
+                for j in 0..FLEN {
+                    v = v.add(self.h[o as usize] * self.inb[(j + self.idx as usize) % FLEN]);
                     o += MFLTOVER as f32;
                 }
 
