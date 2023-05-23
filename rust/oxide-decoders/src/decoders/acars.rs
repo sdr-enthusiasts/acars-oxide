@@ -271,12 +271,28 @@ impl Display for DownlinkStatus {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+enum AckStatus {
+    Nack,
+    Ack(char),
+}
+
+impl Display for AckStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AckStatus::Nack => write!(f, "NACK"),
+            AckStatus::Ack(ack_status) => write!(f, "ACK({})", ack_status),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct AssembledACARSMessage {
     mode: char,
     tail_addr: [char; 8],
-    ack: char,
+    ack: AckStatus,
     label: [char; 3],
     bid: char,
     no: [char; 5],
@@ -322,7 +338,7 @@ impl AssembledACARSMessage {
             frequency: 0.0,
             tail_addr: [' '; 8],
             downlink_status: DownlinkStatus::AirToGround,
-            ack: ' ',
+            ack: AckStatus::Nack,
             label: [' '; 3],
             bid: ' ',
             no: [' '; 5],
@@ -955,12 +971,9 @@ impl ACARSDecoder {
 
         output_message.tail_addr[j] = '\0';
 
-        //     /* ACK/NAK */
-        output_message.ack = self.blk.txt[k] as char;
-        if output_message.ack == 0x15 as char
-        // NAK is nonprintable
-        {
-            output_message.ack = '!';
+        /* ACK/NAK */
+        if self.blk.txt[k] != 0x15 {
+            output_message.ack = AckStatus::Ack(self.blk.txt[k] as char);
         }
 
         k += 1;
