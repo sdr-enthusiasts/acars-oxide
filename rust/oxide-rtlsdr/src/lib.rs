@@ -335,7 +335,7 @@ impl RtlSdr {
                             }
                         }
                         for channel in &mut self.channel.iter_mut().take(self.frequencies.len()) {
-                            channel.decode(rtloutbufz as u32);
+                            channel.decode(rtloutbufz);
                         }
                     })
                     .unwrap();
