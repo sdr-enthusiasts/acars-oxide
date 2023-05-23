@@ -429,10 +429,6 @@ impl Decoder for ACARSDecoder {
         self.demod_msk(length);
     }
 
-    fn get_wf_at_index(&self, index: usize) -> Complex<f32> {
-        self.wf[index]
-    }
-
     fn set_dm_buffer_at_index(&mut self, index: usize, value: f32) {
         self.dm_buffer[index] = value;
     }
