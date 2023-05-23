@@ -19,7 +19,7 @@ const MAX_GAIN: f32 = 60.0;
     about,
     long_about = "ACARS Oxide is a program that allows you to receive and decode ACARS and VDLM2 messages."
 )]
-// Copyright (C) 2023  Fred Clausen
+// Copyright (C) 2023 Fred Clausen
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
