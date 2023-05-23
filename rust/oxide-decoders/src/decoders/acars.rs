@@ -484,8 +484,7 @@ impl ACARSDecoder {
     pub fn demod_msk(&mut self, len: u32) {
         /* MSK demod */
 
-        for n in 0..len as usize {
-            let in_: f32 = self.dm_buffer[n];
+        for in_ in &mut self.dm_buffer.into_iter().take(len as usize) {
             let s: f32 = 1800.0 / INTRATE as f32 * 2.0 * std::f32::consts::PI + self.msk_df;
             let mut v: Complex<f32> = num::Complex::new(0.0, 0.0);
             let mut o: f32;
