@@ -246,7 +246,30 @@ async fn main() {
         }
     }
 
-    let scanner = oxide_scanner::OxideScanner::new(rtlsdr, args.output_to_console, false);
+    // FIXME: Fucked up padding of useless data
+    // Trying to avoid as much heap allocation....not sure I'm actually doing anything useful here
+    // pad the end of the vector with empty SDRs
+
+    let sdr_len: usize = rtlsdr.len();
+
+    while rtlsdr.len() < 8 {
+        rtlsdr.push(RtlSdr::new(
+            String::from(""),
+            0,
+            0,
+            false,
+            160,
+            vec![],
+            ValidDecoderType::ACARS,
+        ));
+    }
+
+    // create an array of length 8 to hold the SDRs
+
+    let rtlsdr_array: [RtlSdr; 8] = array_init::from_iter(rtlsdr.into_iter()).unwrap();
+
+    let scanner =
+        oxide_scanner::OxideScanner::new(rtlsdr_array, sdr_len, args.output_to_console, false);
     scanner.run().await;
 
     trace!("Starting the sleep loop");

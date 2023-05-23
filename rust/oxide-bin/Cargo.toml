@@ -19,3 +19,4 @@ oxide-logging = { path = "../oxide-logging" }
 oxide-scanner = { path = "../oxide-scanner" }
 oxide-decoders = { path = "../oxide-decoders" }
 tokio = { version = "1.28.1", features = ["full", "tracing"] }
+array-init = "2.1.0"
