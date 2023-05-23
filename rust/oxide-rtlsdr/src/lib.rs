@@ -16,6 +16,7 @@
 
 #[macro_use]
 extern crate log;
+use num_complex::Complex;
 use oxide_decoders::decoders::acars::ACARSDecoder;
 use oxide_decoders::decoders::acars::{self, AssembledACARSMessage};
 use oxide_decoders::{Decoder, ValidDecoderType};
@@ -70,7 +71,7 @@ impl RtlSdr {
             channels.push(Box::new(ACARSDecoder::new(
                 0,
                 0,
-                [num::complex::Complex::new(0.0, 0.0); 192],
+                [Complex::new(0.0, 0.0); 192],
             )));
         }
 
@@ -242,7 +243,7 @@ impl RtlSdr {
                     let am_freq =
                         ((channel - center_freq_actual) as f32) * 2.0 * std::f32::consts::PI
                             / (rtl_in_rate as f32);
-                    let mut window: Vec<num::Complex<f32>> = vec![];
+                    let mut window: Vec<Complex<f32>> = vec![];
                     for i in 0..self.rtl_mult {
                         // ch->wf[ind]=cexpf(AMFreq*ind*-I)/rtlMult/127.5;
                         let window_value = (am_freq * i as f32 * -num::complex::Complex::i()).exp()
@@ -255,8 +256,7 @@ impl RtlSdr {
 
                 for i in 0..self.frequencies.len() {
                     // create an array out of the channel_window[i] vector
-                    let mut window_array: [num::Complex<f32>; 192] =
-                        [num::complex::Complex::new(0.0, 0.0); 192];
+                    let mut window_array: [Complex<f32>; 192] = [Complex::new(0.0, 0.0); 192];
                     for (ind, window_value) in channel_windows[i].iter().enumerate() {
                         window_array[ind] = *window_value;
                     }
@@ -294,7 +294,7 @@ impl RtlSdr {
     pub async fn read_samples(mut self) {
         let rtloutbufz = self.get_rtloutbufsz();
         let buffer_len: u32 = rtloutbufz as u32 * self.rtl_mult as u32 * 2;
-        let mut vb: [num::Complex<f32>; 320] = [num::complex::Complex::new(0.0, 0.0); 320];
+        let mut vb: [Complex<f32>; 320] = [num::complex::Complex::new(0.0, 0.0); 320];
         let mut counter: usize = 0;
 
         match self.reader {
@@ -310,14 +310,13 @@ impl RtlSdr {
                         for m in 0..rtloutbufz {
                             for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
                                 *vb_item = (bytes[counter] as f32 - 127.37)
-                                    + (bytes[counter + 1] as f32 - 127.37)
-                                        * num::complex::Complex::i();
+                                    + (bytes[counter + 1] as f32 - 127.37) * Complex::i();
                                 counter += 2;
                             }
 
                             for channel in &mut self.channel.iter_mut().take(self.frequencies.len())
                             {
-                                let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
+                                let mut d: Complex<f32> = Complex::new(0.0, 0.0);
 
                                 for (ind, vb_item) in
                                     vb.iter().enumerate().take(self.rtl_mult as usize)

@@ -16,7 +16,7 @@
 
 use crate::Decoder;
 use custom_error::custom_error;
-use num::Complex;
+use num_complex::Complex;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::ops::Add;
@@ -443,7 +443,7 @@ impl Decoder for ACARSDecoder {
 }
 
 impl ACARSDecoder {
-    pub fn new(channel_number: i32, freq: i32, wf: [num::Complex<f32>; 192]) -> Self {
+    pub fn new(channel_number: i32, freq: i32, wf: [Complex<f32>; 192]) -> Self {
         let mut h: [f32; FLENO] = [0.0; FLENO];
         for (i, h_item) in h.iter_mut().enumerate().take(FLENO) {
             *h_item = f32::cos(
@@ -467,7 +467,7 @@ impl ACARSDecoder {
             msk_bit_count: 0,
             msk_s: 0,
             idx: 0,
-            inb: [num::Complex::new(0.0, 0.0); FLEN as usize],
+            inb: [Complex::new(0.0, 0.0); FLEN as usize],
             outbits: 0,
             nbits: 8,
             acars_state: ACARSState::Wsyn,
@@ -483,7 +483,7 @@ impl ACARSDecoder {
         for n in 0..len as usize {
             let in_: f32 = self.dm_buffer[n];
             let s: f32 = 1800.0 / INTRATE as f32 * 2.0 * std::f32::consts::PI + self.msk_df;
-            let mut v: num::Complex<f32> = num::Complex::new(0.0, 0.0);
+            let mut v: Complex<f32> = num::Complex::new(0.0, 0.0);
             let mut o: f32;
 
             /* VCO */
@@ -494,8 +494,7 @@ impl ACARSDecoder {
 
             /* mixer */
 
-            self.inb[self.idx as usize] =
-                in_ * num::Complex::exp(-self.msk_phi * num::Complex::i());
+            self.inb[self.idx as usize] = in_ * Complex::exp(-self.msk_phi * num::Complex::i());
             self.idx = (self.idx + 1) % (FLEN as u32);
 
             /* bit clock */

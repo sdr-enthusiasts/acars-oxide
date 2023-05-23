@@ -15,6 +15,7 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 use decoders::acars::AssembledACARSMessage;
+use num_complex::Complex;
 use tokio::sync::mpsc::UnboundedSender;
 
 #[macro_use]
@@ -32,7 +33,7 @@ pub enum ValidDecoderType {
 
 pub trait Decoder: Send + Sync {
     fn decode(&mut self, length: u32);
-    fn get_wf_at_index(&self, index: usize) -> num::Complex<f32>;
+    fn get_wf_at_index(&self, index: usize) -> Complex<f32>;
     fn set_dm_buffer_at_index(&mut self, index: usize, value: f32);
     fn set_output_channel(&mut self, channel: UnboundedSender<AssembledACARSMessage>);
 }
