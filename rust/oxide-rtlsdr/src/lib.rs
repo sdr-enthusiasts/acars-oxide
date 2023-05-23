@@ -311,14 +311,11 @@ impl RtlSdr {
 
                         for m in 0..rtloutbufz {
                             for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
-                                *vb_item = (bytes_iterator
-                                    .next()
-                                    .expect("Ran out of bytes!")
-                                    .to_owned() as f32
-                                    - 127.37)
-                                    + (bytes_iterator.next().expect("Ran out of bytes!").to_owned()
-                                        as f32
-                                        - 127.37)
+                                *vb_item = (*bytes_iterator.next().expect("Ran out of bytes!")
+                                    as f32
+                                    - 127.37_f32)
+                                    + (*bytes_iterator.next().expect("Ran out of bytes!") as f32
+                                        - 127.37_f32)
                                         * Complex::i();
                             }
 
