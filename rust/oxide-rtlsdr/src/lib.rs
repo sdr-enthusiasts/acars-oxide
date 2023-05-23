@@ -295,7 +295,6 @@ impl RtlSdr {
         let rtloutbufz = self.get_rtloutbufsz();
         let buffer_len: u32 = rtloutbufz as u32 * self.rtl_mult as u32 * 2;
         let mut vb: [Complex<f32>; 320] = [num::complex::Complex::new(0.0, 0.0); 320];
-        let mut counter: usize = 0;
 
         match self.reader {
             None => {
@@ -305,23 +304,31 @@ impl RtlSdr {
             Some(mut reader) => {
                 reader
                     .read_async(4, buffer_len, |bytes: &[u8]| {
-                        counter = 0;
+                        let mut bytes_iterator = bytes.iter();
 
                         for m in 0..rtloutbufz {
                             for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
-                                *vb_item = (bytes[counter] as f32 - 127.37)
-                                    + (bytes[counter + 1] as f32 - 127.37) * Complex::i();
-                                counter += 2;
+                                *vb_item = (bytes_iterator
+                                    .next()
+                                    .expect("Ran out of bytes!")
+                                    .to_owned() as f32
+                                    - 127.37)
+                                    + (bytes_iterator.next().expect("Ran out of bytes!").to_owned()
+                                        as f32
+                                        - 127.37)
+                                        * Complex::i();
                             }
 
                             for channel in &mut self.channel.iter_mut().take(self.frequencies.len())
                             {
                                 let mut d: Complex<f32> = Complex::new(0.0, 0.0);
 
-                                for (ind, vb_item) in
-                                    vb.iter().enumerate().take(self.rtl_mult as usize)
+                                for (wf, vb_item) in vb
+                                    .iter()
+                                    .zip(channel.get_wf_iter())
+                                    .take(self.rtl_mult as usize)
                                 {
-                                    d += vb_item * channel.get_wf_at_index(ind);
+                                    d += vb_item * wf;
                                 }
 
                                 channel.set_dm_buffer_at_index(m, d.norm());

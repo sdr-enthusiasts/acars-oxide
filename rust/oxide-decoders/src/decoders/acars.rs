@@ -440,6 +440,10 @@ impl Decoder for ACARSDecoder {
     fn set_output_channel(&mut self, output_channel: UnboundedSender<AssembledACARSMessage>) {
         self.output_channel = Some(output_channel);
     }
+
+    fn get_wf_iter(&self) -> std::slice::Iter<'_, Complex<f32>> {
+        self.wf.iter()
+    }
 }
 
 impl ACARSDecoder {

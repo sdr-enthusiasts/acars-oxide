@@ -34,6 +34,7 @@ pub enum ValidDecoderType {
 pub trait Decoder: Send + Sync {
     fn decode(&mut self, length: u32);
     fn get_wf_at_index(&self, index: usize) -> Complex<f32>;
+    fn get_wf_iter(&self) -> std::slice::Iter<'_, Complex<f32>>;
     fn set_dm_buffer_at_index(&mut self, index: usize, value: f32);
     fn set_output_channel(&mut self, channel: UnboundedSender<AssembledACARSMessage>);
 }

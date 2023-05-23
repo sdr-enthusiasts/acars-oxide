@@ -181,3 +181,5 @@ Cargo.lock
 
 #/target
 flamegraph.svg
+*.stacks
+cargo-flamegraph.stacks
