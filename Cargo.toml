@@ -20,3 +20,9 @@ repository = "https://github.com/sdr-enthusiasts/acars-oxide"
 readme = "README.md"
 license = "MIT"
 rust-version = "1.69.0"
+
+# [profile.release]
+# debug = true
+# lto = "fat"
+# codegen-units = 1
+# opt-level = 2
