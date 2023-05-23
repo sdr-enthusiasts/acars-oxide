@@ -22,19 +22,22 @@ use oxide_rtlsdr::RtlSdr;
 use tokio::sync::mpsc;
 
 pub struct OxideScanner {
-    sdrs: Vec<RtlSdr>,
+    sdrs: [RtlSdr; 8],
     enable_output_command_line: bool,
     enable_output_zmq: bool,
+    number_of_sdrs: usize,
 }
 
 impl OxideScanner {
     pub fn new(
-        sdrs: Vec<RtlSdr>,
+        sdrs: [RtlSdr; 8],
+        number_of_sdrs: usize,
         enable_output_command_line: bool,
         enable_output_zmq: bool,
     ) -> OxideScanner {
         OxideScanner {
             sdrs,
+            number_of_sdrs,
             enable_output_command_line,
             enable_output_zmq,
         }
@@ -50,7 +53,7 @@ impl OxideScanner {
             output.monitor_receiver_channel().await;
         });
 
-        for mut sdr in self.sdrs.into_iter() {
+        for mut sdr in self.sdrs.into_iter().take(self.number_of_sdrs) {
             info!("[OXIDE SCANNER] Opening SDR {}", sdr.get_serial());
             match sdr.open_sdr(tx_channel.clone()) {
                 Ok(_) => {

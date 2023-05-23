@@ -16,6 +16,7 @@
 
 use crate::Decoder;
 use custom_error::custom_error;
+// use num_complex::Complex;
 use num::Complex;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -425,12 +426,8 @@ pub struct ACARSDecoder {
 }
 
 impl Decoder for ACARSDecoder {
-    fn decode(&mut self, length: u32) {
+    fn decode(&mut self, length: usize) {
         self.demod_msk(length);
-    }
-
-    fn get_wf_at_index(&self, index: usize) -> Complex<f32> {
-        self.wf[index]
     }
 
     fn set_dm_buffer_at_index(&mut self, index: usize, value: f32) {
@@ -440,10 +437,14 @@ impl Decoder for ACARSDecoder {
     fn set_output_channel(&mut self, output_channel: UnboundedSender<AssembledACARSMessage>) {
         self.output_channel = Some(output_channel);
     }
+
+    fn get_wf_iter(&self) -> std::slice::Iter<'_, Complex<f32>> {
+        self.wf.iter()
+    }
 }
 
 impl ACARSDecoder {
-    pub fn new(channel_number: i32, freq: i32, wf: [num::Complex<f32>; 192]) -> Self {
+    pub fn new(channel_number: i32, freq: i32, wf: [Complex<f32>; 192]) -> Self {
         let mut h: [f32; FLENO] = [0.0; FLENO];
         for (i, h_item) in h.iter_mut().enumerate().take(FLENO) {
             *h_item = f32::cos(
@@ -467,7 +468,7 @@ impl ACARSDecoder {
             msk_bit_count: 0,
             msk_s: 0,
             idx: 0,
-            inb: [num::Complex::new(0.0, 0.0); FLEN as usize],
+            inb: [Complex::new(0.0, 0.0); FLEN as usize],
             outbits: 0,
             nbits: 8,
             acars_state: ACARSState::Wsyn,
@@ -477,13 +478,12 @@ impl ACARSDecoder {
         }
     }
 
-    pub fn demod_msk(&mut self, len: u32) {
+    pub fn demod_msk(&mut self, len: usize) {
         /* MSK demod */
 
-        for n in 0..len as usize {
-            let in_: f32 = self.dm_buffer[n];
+        for in_ in &mut self.dm_buffer.into_iter().take(len) {
             let s: f32 = 1800.0 / INTRATE as f32 * 2.0 * std::f32::consts::PI + self.msk_df;
-            let mut v: num::Complex<f32> = num::Complex::new(0.0, 0.0);
+            let mut v: Complex<f32> = Complex::new(0.0, 0.0);
             let mut o: f32;
 
             /* VCO */
@@ -494,8 +494,7 @@ impl ACARSDecoder {
 
             /* mixer */
 
-            self.inb[self.idx as usize] =
-                in_ * num::Complex::exp(-self.msk_phi * num::Complex::i());
+            self.inb[self.idx as usize] = in_ * Complex::exp(-self.msk_phi * Complex::i());
             self.idx = (self.idx + 1) % (FLEN as u32);
 
             /* bit clock */

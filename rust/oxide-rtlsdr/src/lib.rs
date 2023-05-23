@@ -16,6 +16,8 @@
 
 #[macro_use]
 extern crate log;
+// use num_complex::Complex;
+use num::Complex;
 use oxide_decoders::decoders::acars::ACARSDecoder;
 use oxide_decoders::decoders::acars::{self, AssembledACARSMessage};
 use oxide_decoders::{Decoder, ValidDecoderType};
@@ -47,7 +49,7 @@ pub struct RtlSdr {
     bias_tee: bool,
     rtl_mult: i32,
     frequencies: Vec<f32>,
-    channel: Vec<Box<dyn Decoder>>,
+    channel: [Box<dyn Decoder>; 16],
     decoder_type: ValidDecoderType,
 }
 
@@ -62,6 +64,17 @@ impl RtlSdr {
         decoder: ValidDecoderType,
     ) -> RtlSdr {
         frequencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let mut channels: Vec<Box<dyn Decoder>> = Vec::new();
+
+        // FIXME: This feels so wasteful to create 16 decoders when we only need 1 or 2
+        // But the array needs to be filled. Can we do better?
+        for _ in 0..16_usize {
+            channels.push(Box::new(ACARSDecoder::new(
+                0,
+                0,
+                [Complex::new(0.0, 0.0); 192],
+            )));
+        }
 
         Self {
             ctl: None,
@@ -73,7 +86,8 @@ impl RtlSdr {
             bias_tee,
             rtl_mult,
             frequencies,
-            channel: vec![],
+            // array_init::array_init(|i: usize| (i * i) as u32);
+            channel: array_init::from_iter(channels.into_iter()).unwrap(),
             decoder_type: decoder,
         }
     }
@@ -230,10 +244,10 @@ impl RtlSdr {
                     let am_freq =
                         ((channel - center_freq_actual) as f32) * 2.0 * std::f32::consts::PI
                             / (rtl_in_rate as f32);
-                    let mut window: Vec<num::Complex<f32>> = vec![];
+                    let mut window: Vec<Complex<f32>> = vec![];
                     for i in 0..self.rtl_mult {
                         // ch->wf[ind]=cexpf(AMFreq*ind*-I)/rtlMult/127.5;
-                        let window_value = (am_freq * i as f32 * -num::complex::Complex::i()).exp()
+                        let window_value = (am_freq * i as f32 * -Complex::i()).exp()
                             / self.rtl_mult as f32
                             / 127.5;
                         window.push(window_value);
@@ -243,8 +257,7 @@ impl RtlSdr {
 
                 for i in 0..self.frequencies.len() {
                     // create an array out of the channel_window[i] vector
-                    let mut window_array: [num::Complex<f32>; 192] =
-                        [num::complex::Complex::new(0.0, 0.0); 192];
+                    let mut window_array: [Complex<f32>; 192] = [Complex::new(0.0, 0.0); 192];
                     for (ind, window_value) in channel_windows[i].iter().enumerate() {
                         window_array[ind] = *window_value;
                     }
@@ -252,7 +265,7 @@ impl RtlSdr {
                         ACARSDecoder::new(i as i32, channels[i], window_array);
                     out_channel.set_output_channel(output_channel.clone());
 
-                    self.channel.push(Box::new(out_channel));
+                    self.channel[i] = Box::new(out_channel);
                 }
 
                 info!(
@@ -282,8 +295,7 @@ impl RtlSdr {
     pub async fn read_samples(mut self) {
         let rtloutbufz = self.get_rtloutbufsz();
         let buffer_len: u32 = rtloutbufz as u32 * self.rtl_mult as u32 * 2;
-        let mut vb: [num::Complex<f32>; 320] = [num::complex::Complex::new(0.0, 0.0); 320];
-        let mut counter: usize = 0;
+        let mut vb: [Complex<f32>; 320] = [Complex::new(0.0, 0.0); 320];
 
         match self.reader {
             None => {
@@ -293,29 +305,38 @@ impl RtlSdr {
             Some(mut reader) => {
                 reader
                     .read_async(4, buffer_len, |bytes: &[u8]| {
-                        counter = 0;
+                        let mut bytes_iterator = bytes.iter();
+
                         for m in 0..rtloutbufz {
                             for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
-                                *vb_item = (bytes[counter] as f32 - 127.37)
-                                    + (bytes[counter + 1] as f32 - 127.37)
-                                        * num::complex::Complex::i();
-                                counter += 2;
+                                *vb_item = (bytes_iterator
+                                    .next()
+                                    .expect("Ran out of bytes!")
+                                    .to_owned() as f32
+                                    - 127.37)
+                                    + (bytes_iterator.next().expect("Ran out of bytes!").to_owned()
+                                        as f32
+                                        - 127.37)
+                                        * Complex::i();
                             }
 
-                            for channel in &mut self.channel {
-                                let mut d: num::Complex<f32> = num::complex::Complex::new(0.0, 0.0);
+                            for channel in &mut self.channel.iter_mut().take(self.frequencies.len())
+                            {
+                                let mut d: Complex<f32> = Complex::new(0.0, 0.0);
 
-                                for (ind, vb_item) in
-                                    vb.iter().enumerate().take(self.rtl_mult as usize)
+                                for (wf, vb_item) in vb
+                                    .iter()
+                                    .zip(channel.get_wf_iter())
+                                    .take(self.rtl_mult as usize)
                                 {
-                                    d += vb_item * channel.get_wf_at_index(ind);
+                                    d += vb_item * wf;
                                 }
 
                                 channel.set_dm_buffer_at_index(m, d.norm());
                             }
                         }
-                        for channel in &mut self.channel {
-                            channel.decode(rtloutbufz as u32);
+                        for channel in &mut self.channel.iter_mut().take(self.frequencies.len()) {
+                            channel.decode(rtloutbufz);
                         }
                     })
                     .unwrap();
