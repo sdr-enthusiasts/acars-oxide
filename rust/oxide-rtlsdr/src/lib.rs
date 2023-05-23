@@ -96,6 +96,7 @@ impl RtlSdr {
         match self.decoder_type {
             ValidDecoderType::ACARS => acars::INTRATE as i32,
             ValidDecoderType::VDL2 => 0,
+            ValidDecoderType::HFDL => 0,
         }
     }
 
@@ -103,6 +104,7 @@ impl RtlSdr {
         match self.decoder_type {
             ValidDecoderType::ACARS => acars::RTLOUTBUFSZ,
             ValidDecoderType::VDL2 => 0,
+            ValidDecoderType::HFDL => 0,
         }
     }
 

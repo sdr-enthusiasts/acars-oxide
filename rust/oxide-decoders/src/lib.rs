@@ -24,12 +24,14 @@ extern crate log;
 
 pub mod decoders {
     pub mod acars;
+    pub mod acars_labels;
 }
 
 #[derive(Debug, Clone)]
 pub enum ValidDecoderType {
     ACARS,
     VDL2,
+    HFDL,
 }
 
 pub trait Decoder: Send + Sync {
