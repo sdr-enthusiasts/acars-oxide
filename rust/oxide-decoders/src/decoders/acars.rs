@@ -358,7 +358,7 @@ impl AssembledACARSMessage {
 struct Mskblks {
     chn: i32,
     timeval: u64,
-    len: i32,
+    len: usize,
     pub err: usize,
     lvl: f32,
     pub txt: [u8; 250],
@@ -402,7 +402,7 @@ impl Mskblks {
         self.timeval = timeval;
     }
 
-    pub fn set_len(&mut self, len: i32) {
+    pub fn set_len(&mut self, len: usize) {
         self.len = len;
     }
 
@@ -414,7 +414,7 @@ impl Mskblks {
         self.txt[index] = txt;
     }
 
-    pub fn len(&self) -> i32 {
+    pub fn len(&self) -> usize {
         self.len
     }
 }
@@ -656,8 +656,7 @@ impl ACARSDecoder {
                     "[{: <13}] TXT",
                     format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
                 );
-                self.blk
-                    .set_text_by_index(self.blk.len as usize, self.outbits);
+                self.blk.set_text_by_index(self.blk.len, self.outbits);
                 self.blk.len += 1;
 
                 if (NUMBITS[self.outbits as usize] & 1) == 0 {
@@ -683,8 +682,8 @@ impl ACARSDecoder {
                 }
                 if self.blk.len > 20 && self.outbits == DLE {
                     self.blk.len -= 3;
-                    self.blk.crc[0] = self.blk.txt[self.blk.len as usize];
-                    self.blk.crc[1] = self.blk.txt[self.blk.len as usize + 1];
+                    self.blk.crc[0] = self.blk.txt[self.blk.len];
+                    self.blk.crc[1] = self.blk.txt[self.blk.len + 1];
                     self.acars_state = ACARSState::Crc2;
                     self.put_msg_label();
                 }
@@ -754,8 +753,8 @@ impl ACARSDecoder {
         }
 
         /* test double error in bytes */
-        for k in 0..self.blk.len as usize {
-            let bo: usize = 8 * (self.blk.len as usize - k + 1);
+        for k in 0..self.blk.len {
+            let bo: usize = 8 * (self.blk.len - k + 1);
             for i in 0..8_usize {
                 for j in 0..8_usize {
                     if i == j {
@@ -785,8 +784,7 @@ impl ACARSDecoder {
             for i in 0..8 {
                 debug!("Running recursion {}", i);
                 //syndrom[i + 8 * (blk->len - *pr + 1)]
-                let test =
-                    crc ^ SYNDROM[i + 8 * (self.blk.len as usize - pr[pr_index] as usize + 1)];
+                let test = crc ^ SYNDROM[i + 8 * (self.blk.len - pr[pr_index] as usize + 1)];
                 if self.fixprerr(test, pr, pr_index + 1, pn - 1).is_ok() {
                     self.blk.txt[self.blk.txt[pr[pr_index] as usize] as usize] ^= 1 << i;
                     debug!("Fixed!");
@@ -833,7 +831,7 @@ impl ACARSDecoder {
 
         /* parity check */
         let mut pn: usize = 0;
-        for i in 0..self.blk.len as usize {
+        for i in 0..self.blk.len {
             if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
                 if pn < MAXPERR {
                     pr[pn] = i as u8;
@@ -866,7 +864,7 @@ impl ACARSDecoder {
 
         /* crc check */
         let mut crc: u32 = 0;
-        for i in 0..self.blk.len as usize {
+        for i in 0..self.blk.len {
             crc = self.update_crc(crc, self.blk.txt[i] as u32);
         }
 
@@ -922,7 +920,7 @@ impl ACARSDecoder {
 
         // /* redo parity checking and removing */
         pn = 0;
-        for i in 0..self.blk.len as usize {
+        for i in 0..self.blk.len {
             if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
                 pn += 1;
             }
@@ -1004,12 +1002,12 @@ impl ACARSDecoder {
 
         output_message.bs = self.blk.txt[k] as char;
         k += 1;
-        output_message.be = self.blk.txt[self.blk.len as usize - 1] as char;
+        output_message.be = self.blk.txt[self.blk.len - 1] as char;
 
         if output_message.bs != 0x03 as char {
             if is_downlink {
                 /* message no */
-                while i < 4 && k < self.blk.len as usize - 1 {
+                while i < 4 && k < self.blk.len - 1 {
                     output_message.no[i] = self.blk.txt[k] as char;
                     i += 1;
                     k += 1;
@@ -1030,7 +1028,7 @@ impl ACARSDecoder {
                 //     msg.fid[i] = blk->txt[k];
                 // }
                 i = 0;
-                while i < 6 && k < self.blk.len as usize - 1 {
+                while i < 6 && k < self.blk.len - 1 {
                     output_message.flight_id[i] = self.blk.txt[k] as char;
                     i += 1;
                     k += 1;
@@ -1041,7 +1039,7 @@ impl ACARSDecoder {
                 //outflg = true;
             }
 
-            let txt_len = self.blk.len as usize - k - 1;
+            let txt_len = self.blk.len - k - 1;
 
             // libacars step. Skipping for now
             // TODO: Don't skip
