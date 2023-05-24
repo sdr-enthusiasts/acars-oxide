@@ -843,12 +843,12 @@ impl ACARSDecoder {
                 }
                 pn += 1;
             }
-            if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
-                if pn < MAXPERR {
-                    pr[pn] = i as u8;
-                }
-                pn += 1;
-            }
+            // if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
+            //     if pn < MAXPERR {
+            //         pr[pn] = i as u8;
+            //     }
+            //     pn += 1;
+            // }
         }
         if pn > MAXPERR {
             info!(
