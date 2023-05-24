@@ -742,9 +742,7 @@ impl ACARSDecoder {
 
     fn update_crc(&self, crc: u32, c: u32) -> u32 {
         // #define update_crc(crc,c) crc= (crc>> 8)^crc_ccitt_table[(crc^(c))&0xff];
-        let mut crc: u32 = crc;
-        crc = (crc >> 8) ^ CRC[((crc ^ c) & 0xff) as usize];
-        crc
+        (crc >> 8) ^ CRC[((crc ^ c) & 0xff) as usize]
     }
 
     fn fixdberr(&mut self, crc: u32) -> Result<(), ACARSDecodingError> {
@@ -781,13 +779,17 @@ impl ACARSDecoder {
         pr_index: usize,
         pn: usize,
     ) -> Result<(), ACARSDecodingError> {
+        debug!("Called fixprerr pn {}", pn);
         if pn > 0 {
             /* try to recursievly fix parity error */
             for i in 0..8 {
+                debug!("Running recursion {}", i);
+                //syndrom[i + 8 * (blk->len - *pr + 1)]
                 let test =
                     crc ^ SYNDROM[i + 8 * (self.blk.len as usize - pr[pr_index] as usize + 1)];
                 if self.fixprerr(test, pr, pr_index + 1, pn - 1).is_ok() {
-                    self.blk.txt[pr_index] ^= 1 << i;
+                    self.blk.txt[self.blk.txt[pr[pr_index] as usize] as usize] ^= 1 << i;
+                    debug!("Fixed!");
                     return Ok(());
                 }
                 // {
@@ -797,6 +799,7 @@ impl ACARSDecoder {
             }
             Err(ACARSDecodingError::FixPR)
         } else {
+            debug!("No more parity errors. CRC {}", crc);
             /* end of recursion : no more parity error */
             if crc == 0 {
                 return Ok(());
@@ -853,8 +856,9 @@ impl ACARSDecoder {
         }
         if pn > 0 {
             info!(
-                "[{: <13}] Parity errors: {}",
+                "[{: <13}] Initial parity error{}: {}",
                 format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+                if pn > 1 { "s" } else { "" },
                 pn
             );
         }
@@ -870,9 +874,8 @@ impl ACARSDecoder {
         crc = self.update_crc(crc, self.blk.crc[1] as u32);
         if crc != 0 {
             error!(
-                "[{: <13}] {} crc error",
+                "[{: <13}] CRC error",
                 format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-                self.blk.chn + 1
             );
         } else {
             trace!(
@@ -888,34 +891,32 @@ impl ACARSDecoder {
                 Ok(_) => {}
                 Err(_) => {
                     error!(
-                        "[{: <13}] {:#} not able to fix errors",
+                        "[{: <13}] Not able to fix parity errors",
                         format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-                        self.blk.chn + 1
                     );
                     return;
                 }
             }
             info!(
-                "[{: <13}] {:#} errors fixed",
+                "[{: <13}] {:#} total parity error{} fixed",
                 format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-                self.blk.chn + 1
+                pn,
+                if pn > 1 { "s" } else { "" }
             );
         } else if crc > 0 {
             match self.fixdberr(crc) {
                 Ok(_) => {}
                 Err(_) => {
                     error!(
-                        "[{: <13}] {:#} not able to fix errors",
+                        "[{: <13}] Not able to fix CRC errors",
                         format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-                        self.blk.chn + 1
                     );
                     return;
                 }
             }
             info!(
-                "[{: <13}] {:#} errors fixed",
+                "[{: <13}] CRC errors fixed",
                 format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-                self.blk.chn + 1
             );
         }
 
@@ -929,7 +930,7 @@ impl ACARSDecoder {
         }
         if pn > 0 {
             info!(
-                "[{: <13}] Parity errors: {}",
+                "[{: <13}] Final parity errors: {}",
                 format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
                 pn
             );
