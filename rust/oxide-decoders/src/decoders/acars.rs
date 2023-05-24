@@ -788,6 +788,10 @@ impl ACARSDecoder {
                 debug!("Test {}", test);
                 debug!("pr_index {}", pr_index);
                 debug!("pr[pr_index] {}", pr[pr_index]);
+                debug!(
+                    "index into SYNDROM {}",
+                    i + 8 * (self.blk.len - pr[pr_index] as usize + 1)
+                );
                 if self.fixprerr(test, pr, pr_index + 1, pn - 1).is_ok() {
                     self.blk.txt[self.blk.txt[pr[pr_index] as usize] as usize] ^= 1 << i;
                     debug!("Fixed!");
