@@ -790,22 +790,20 @@ impl ACARSDecoder {
                     debug!("Fixed!");
                     return Ok(());
                 }
-                // {
-                //     blk.txt[*pr] ^= (1 << i);
-                //     return Ok(());
-                // }
             }
             Err(ACARSDecodingError::FixPR)
         } else {
             debug!("No more parity errors. CRC {}", crc);
             /* end of recursion : no more parity error */
             if crc == 0 {
+                debug!("CRC is 0");
                 return Ok(());
-            };
+            }
 
-            /* test remainding error in crc */
+            /* test remaining error in crc */
             for item in SYNDROM.iter().take(16_usize) {
                 if *item == crc {
+                    debug!("Found CRC in syndrom");
                     return Ok(());
                 }
             }
