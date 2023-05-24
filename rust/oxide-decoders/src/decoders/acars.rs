@@ -778,23 +778,13 @@ impl ACARSDecoder {
         pr_index: usize,
         pn: usize,
     ) -> Result<(), ACARSDecodingError> {
-        debug!("Called fixprerr pn {}", pn);
         if pn > 0 {
             /* try to recursievly fix parity error */
             for i in 0..8 {
-                debug!("Running recursion {}", i);
                 //syndrom[i + 8 * (blk->len - *pr + 1)]
                 let test = crc ^ SYNDROM[i + 8 * (self.blk.len - pr[pr_index] as usize + 1)];
-                debug!("Test {}", test);
-                debug!("pr_index {}", pr_index);
-                debug!("pr[pr_index] {}", pr[pr_index]);
-                debug!(
-                    "index into SYNDROM {}",
-                    i + 8 * (self.blk.len - pr[pr_index] as usize + 1)
-                );
                 if self.fixprerr(test, pr, pr_index + 1, pn - 1).is_ok() {
                     self.blk.txt[self.blk.txt[pr[pr_index] as usize] as usize] ^= 1 << i;
-                    debug!("Fixed!");
                     return Ok(());
                 }
             }
@@ -803,14 +793,12 @@ impl ACARSDecoder {
             debug!("No more parity errors. CRC {}", crc);
             /* end of recursion : no more parity error */
             if crc == 0 {
-                debug!("CRC is 0");
                 return Ok(());
             }
 
             /* test remaining error in crc */
             for item in SYNDROM.iter().take(16_usize) {
                 if *item == crc {
-                    debug!("Found CRC in syndrom");
                     return Ok(());
                 }
             }
@@ -843,15 +831,9 @@ impl ACARSDecoder {
                 }
                 pn += 1;
             }
-            // if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
-            //     if pn < MAXPERR {
-            //         pr[pn] = i as u8;
-            //     }
-            //     pn += 1;
-            // }
         }
         if pn > MAXPERR {
-            info!(
+            error!(
                 "[{: <13}] Too many parity errors",
                 format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
             );
@@ -887,7 +869,6 @@ impl ACARSDecoder {
             );
         }
 
-        // TODO: Fix Error correcting. It seems broken.
         /* try to fix error */
         if pn > 0 {
             match self.fixprerr(crc, &pr, 0, pn) {
