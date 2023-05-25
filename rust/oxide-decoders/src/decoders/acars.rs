@@ -1118,7 +1118,7 @@ impl ACARSDecoder {
 
             i = 0;
             if txt_len > 0 {
-                while i <= txt_len {
+                while i < txt_len {
                     output_message.txt.push(self.blk.txt[k + i] as char);
                     i += 1;
                 }
