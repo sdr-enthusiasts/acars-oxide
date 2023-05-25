@@ -257,7 +257,7 @@ enum ACARSState {
     End,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum DownlinkStatus {
     AirToGround,
     GroundToAir,
@@ -268,6 +268,32 @@ impl Display for DownlinkStatus {
         match self {
             DownlinkStatus::AirToGround => write!(f, "Air to Ground"),
             DownlinkStatus::GroundToAir => write!(f, "Ground to Air"),
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+enum ReassemblyStatus {
+    Unknown,
+    Complete,
+    InProgress,
+    Skipped,
+    Duplicate,
+    FragOutOfSequence,
+    ArgsInvalid,
+}
+
+impl Display for ReassemblyStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReassemblyStatus::Unknown => write!(f, "Unknown"),
+            ReassemblyStatus::Complete => write!(f, "Complete"),
+            ReassemblyStatus::InProgress => write!(f, "In Progress"),
+            ReassemblyStatus::Skipped => write!(f, "Skipped"),
+            ReassemblyStatus::Duplicate => write!(f, "Duplicate"),
+            ReassemblyStatus::FragOutOfSequence => write!(f, "Fragment out of sequence"),
+            ReassemblyStatus::ArgsInvalid => write!(f, "Invalid arguments"),
         }
     }
 }
@@ -297,8 +323,8 @@ pub struct AssembledACARSMessage {
     bid: char,
     no: [char; 5],
     flight_id: [char; 7],
-    sublabel: [char; 3],
-    mfi: [char; 3],
+    sublabel: Option<[char; 3]>,
+    mfi: Option<[char; 3]>,
     bs: char,
     be: char,
     txt: Vec<char>,
@@ -308,13 +334,16 @@ pub struct AssembledACARSMessage {
     downlink_status: DownlinkStatus,
     msn: [char; 4],
     msn_seq: char,
+    reassembly_status: ReassemblyStatus,
 }
 
 impl Display for AssembledACARSMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // TODO: Format the optional fields appropriately
+
         write!(
             f,
-            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {}, mfi: {}, txt: {}, err: {}, lvl: {}, msn: {}, msn seq: {}",
+            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {:?}, mfi: {:?}, txt: {}, err: {}, lvl: {}, msn: {}, msn seq: {}, reassembly status: {}",
             self.frequency,
             self.mode,
             self.tail_addr.iter().collect::<String>().trim(),
@@ -324,13 +353,14 @@ impl Display for AssembledACARSMessage {
             self.bid,
             self.no.iter().collect::<String>().trim(),
             self.flight_id.iter().collect::<String>().trim(),
-            self.sublabel.iter().collect::<String>().trim(),
-            self.mfi.iter().collect::<String>().trim(),
+            self.sublabel,
+            self.mfi,
             self.txt.iter().collect::<String>().trim(),
             self.err,
             self.lvl,
             self.msn.iter().collect::<String>().trim(),
             self.msn_seq,
+            self.reassembly_status
         )
     }
 }
@@ -347,8 +377,8 @@ impl AssembledACARSMessage {
             bid: ' ',
             no: [' '; 5],
             flight_id: [' '; 7],
-            sublabel: [' '; 3],
-            mfi: [' '; 3],
+            sublabel: None,
+            mfi: None,
             bs: ' ',
             be: ' ',
             txt: Vec::new(),
@@ -356,6 +386,7 @@ impl AssembledACARSMessage {
             lvl: 0.0,
             msn: [' '; 4],
             msn_seq: ' ',
+            reassembly_status: ReassemblyStatus::Skipped,
         }
     }
 }
@@ -918,11 +949,14 @@ impl ACARSDecoder {
             self.blk.txt[i] &= 0x7f;
         }
         if pn > 0 {
-            info!(
-                "[{: <13}] Final parity errors: {}",
+            error!(
+                "[{: <13}] Final parity error{}: {}",
                 format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+                if pn > 1 { "s" } else { "" },
                 pn
             );
+
+            return;
         }
 
         trace!(
@@ -1027,19 +1061,15 @@ impl ACARSDecoder {
                 //outflg = true;
             }
 
-            let txt_len = self.blk.len - k - 1;
+            let mut txt_len = self.blk.len - k - 1;
 
-            // libacars step. Skipping for now
-            // TODO: Don't skip
-            // #ifdef HAVE_LIBACARS
+            // Extract sublabel and MFI if present
+            let offset = self.acars_extract_sublabel_and_mfi(&mut output_message, k);
 
-            //         // Extract sublabel and MFI if present
-            //         int offset = la_acars_extract_sublabel_and_mfi(msg.label, msg_dir,
-            //                 blk->txt + k, txt_len, msg.sublabel, msg.mfi);
-            //         if(offset > 0) {
-            //             k += offset;
-            //             txt_len -= offset;
-            //         }
+            if offset > 0 {
+                k += offset;
+                txt_len -= offset;
+            }
 
             //         la_reasm_table *acars_rtable = NULL;
             //         if(msg.bid != 0 && reasm_ctx != NULL) { // not a squitter && reassembly engine is enabled
@@ -1049,12 +1079,12 @@ impl ACARSDecoder {
             //                         acars_reasm_funcs, LA_ACARS_REASM_TABLE_CLEANUP_INTERVAL);
             //             }
 
-            //             // The sequence number at which block id wraps at.
-            //             // - downlinks: none (MSN always goes from 'A' up to 'P')
-            //             // - uplinks:
-            //             //   - for VHF Category A (mode=2): wraps after block id 'Z'
-            //             //   - for VHF Category B (mode!=2): wraps after block id 'W'
-            //             //     (blocks 'X'-'Z' are reserved for empty ACKs)
+            // The sequence number at which block id wraps at.
+            // - downlinks: none (MSN always goes from 'A' up to 'P')
+            // - uplinks:
+            //   - for VHF Category A (mode=2): wraps after block id 'Z'
+            //   - for VHF Category B (mode!=2): wraps after block id 'W'
+            //     (blocks 'X'-'Z' are reserved for empty ACKs)
 
             //             int seq_num_wrap = SEQ_WRAP_NONE;
             //             if(!down)
@@ -1121,5 +1151,70 @@ impl ACARSDecoder {
         if let Some(ref mut output_channel) = self.output_channel {
             output_channel.send(output_message).unwrap();
         }
+    }
+
+    fn acars_extract_sublabel_and_mfi(
+        &self,
+        output_message: &mut AssembledACARSMessage,
+        txt_start_position: usize,
+    ) -> usize {
+        if self.blk.len < 2 {
+            return 0;
+        }
+
+        let mut consumed: usize = 0;
+        let mut remaining: usize = self.blk.len;
+        let mut internal_start_position = txt_start_position;
+
+        if output_message.label[0] == 'H' && output_message.label[1] == '1' {
+            if output_message.downlink_status == DownlinkStatus::GroundToAir
+                && remaining >= 5
+                && self.blk.txt[internal_start_position] as char == '-'
+                && self.blk.txt[internal_start_position + 1] as char == ' '
+                && self.blk.txt[internal_start_position + 2] as char == '#'
+            {
+                debug!("Found sublabel in H1 message G2A");
+                output_message.sublabel = Some([
+                    self.blk.txt[internal_start_position + 3] as char,
+                    self.blk.txt[internal_start_position + 4] as char,
+                    '\0',
+                ]);
+
+                internal_start_position += 5;
+                consumed += 5;
+                remaining -= 5;
+            } else if output_message.downlink_status == DownlinkStatus::AirToGround
+                && remaining >= 4
+                && self.blk.txt[internal_start_position] as char == '#'
+                && self.blk.txt[internal_start_position + 3] as char == 'B'
+            {
+                debug!("Found sublabel in H1 message A2G");
+                output_message.sublabel = Some([
+                    self.blk.txt[internal_start_position + 1] as char,
+                    self.blk.txt[internal_start_position + 2] as char,
+                    '\0',
+                ]);
+
+                internal_start_position += 4;
+                consumed += 4;
+                remaining -= 4;
+            }
+
+            // find the MFI
+
+            if remaining >= 4
+                && self.blk.txt[internal_start_position] as char == '/'
+                && self.blk.txt[internal_start_position + 3] as char == ' '
+            {
+                output_message.mfi = Some([
+                    self.blk.txt[internal_start_position + 1] as char,
+                    self.blk.txt[internal_start_position + 2] as char,
+                    '\0',
+                ]);
+
+                consumed += 4;
+            }
+        }
+        consumed
     }
 }
