@@ -1116,10 +1116,10 @@ impl ACARSDecoder {
             //             msg.txt = calloc(txt_len + 1, sizeof(char));
             //k += 1;
 
+            i = 0;
             if txt_len > 0 {
-                while k <= txt_len {
-                    output_message.txt.push(self.blk.txt[k] as char);
-                    k += 1;
+                while i <= txt_len {
+                    output_message.txt.push(self.blk.txt[k + i] as char);
                     i += 1;
                 }
             }
