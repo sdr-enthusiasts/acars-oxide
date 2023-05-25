@@ -314,7 +314,7 @@ impl Display for AssembledACARSMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {}, mfi: {}, txt: {}, err: {}, lvl: {}",
+            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {}, mfi: {}, txt: {}, err: {}, lvl: {}, msn: {}, msn seq: {}",
             self.frequency,
             self.mode,
             self.tail_addr.iter().collect::<String>().trim(),
@@ -328,7 +328,9 @@ impl Display for AssembledACARSMessage {
             self.mfi.iter().collect::<String>().trim(),
             self.txt.iter().collect::<String>().trim(),
             self.err,
-            self.lvl
+            self.lvl,
+            self.msn.iter().collect::<String>().trim(),
+            self.msn_seq,
         )
     }
 }
