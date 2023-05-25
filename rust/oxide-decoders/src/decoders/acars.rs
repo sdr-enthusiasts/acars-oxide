@@ -1113,10 +1113,10 @@ impl ACARSDecoder {
             //         } else {
             // #endif // HAVE_LIBACARS
             //             msg.txt = calloc(txt_len + 1, sizeof(char));
-            k += 1;
+            //k += 1;
 
             if txt_len > 0 {
-                while k < txt_len {
+                while k <= txt_len {
                     output_message.txt.push(self.blk.txt[k] as char);
                     k += 1;
                     i += 1;
@@ -1202,7 +1202,8 @@ impl ACARSDecoder {
 
             // find the MFI
 
-            if remaining >= 4
+            if output_message.sublabel.is_some()
+                && remaining >= 4
                 && self.blk.txt[internal_start_position] as char == '/'
                 && self.blk.txt[internal_start_position + 3] as char == ' '
             {
