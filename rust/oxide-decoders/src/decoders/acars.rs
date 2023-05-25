@@ -785,7 +785,7 @@ impl ACARSDecoder {
         /* test remaining error in crc */
         for item in SYNDROM.iter().take(16_usize) {
             if *item == crc {
-                return Err(ACARSDecodingError::FixDB);
+                return Ok(());
             }
         }
 
@@ -800,12 +800,12 @@ impl ACARSDecoder {
                     if (crc ^ SYNDROM[i + bo] ^ SYNDROM[j + bo]) == 0 {
                         self.blk.txt[k] ^= 1 << i;
                         self.blk.txt[k] ^= 1 << j;
-                        return Err(ACARSDecodingError::FixDB);
+                        return Ok(());
                     }
                 }
             }
         }
-        Ok(())
+        Err(ACARSDecodingError::FixDB)
     }
 
     fn fixprerr(
