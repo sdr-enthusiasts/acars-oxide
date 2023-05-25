@@ -1062,15 +1062,12 @@ impl ACARSDecoder {
             }
 
             let mut txt_len = self.blk.len - k - 1;
-            debug!("txt_len: {}", txt_len);
 
             // Extract sublabel and MFI if present
             let offset = self.acars_extract_sublabel_and_mfi(&mut output_message, k);
 
-            if offset > 0 {
-                k += offset;
-                txt_len -= offset;
-            }
+            k += offset;
+            txt_len -= offset;
 
             //         la_reasm_table *acars_rtable = NULL;
             //         if(msg.bid != 0 && reasm_ctx != NULL) { // not a squitter && reassembly engine is enabled
@@ -1174,7 +1171,6 @@ impl ACARSDecoder {
                 && self.blk.txt[internal_start_position + 1] as char == ' '
                 && self.blk.txt[internal_start_position + 2] as char == '#'
             {
-                debug!("Found sublabel in H1 message G2A");
                 output_message.sublabel = Some([
                     self.blk.txt[internal_start_position + 3] as char,
                     self.blk.txt[internal_start_position + 4] as char,
@@ -1189,7 +1185,6 @@ impl ACARSDecoder {
                 && self.blk.txt[internal_start_position] as char == '#'
                 && self.blk.txt[internal_start_position + 3] as char == 'B'
             {
-                debug!("Found sublabel in H1 message A2G");
                 output_message.sublabel = Some([
                     self.blk.txt[internal_start_position + 1] as char,
                     self.blk.txt[internal_start_position + 2] as char,
