@@ -306,6 +306,8 @@ pub struct AssembledACARSMessage {
     lvl: f32,
     frequency: f32,
     downlink_status: DownlinkStatus,
+    msn: [char; 4],
+    msn_seq: char,
 }
 
 impl Display for AssembledACARSMessage {
@@ -350,6 +352,8 @@ impl AssembledACARSMessage {
             txt: Vec::new(),
             err: 0,
             lvl: 0.0,
+            msn: [' '; 4],
+            msn_seq: ' ',
         }
     }
 }
@@ -998,20 +1002,17 @@ impl ACARSDecoder {
                     k += 1;
                 }
                 output_message.no[i] = '\0';
-                // libacars step. Skipping for now
-                // TODO: Don't skip
-                // #ifdef HAVE_LIBACARS
-                //             /* The 3-char prefix is used in reassembly hash table key, so we need */
-                //             /* to store the MSN separately as prefix and seq character. */
-                //             for (i = 0; i < 3; i++)
-                //                 msg.msn[i] = msg.no[i];
-                //             msg.msn[3] = '\0';
-                //             msg.msn_seq = msg.no[3];
-                // #endif
-                //             /* Flight id */
-                // for (i = 0; i < 6 && k < blk->len - 1; i++, k++) {
-                //     msg.fid[i] = blk->txt[k];
-                // }
+
+                /* The 3-char prefix is used in reassembly hash table key, so we need */
+                /* to store the MSN separately as prefix and seq character. */
+                i = 0;
+                while i < 3 {
+                    output_message.msn[i] = output_message.no[i];
+                    i += 1;
+                }
+                output_message.msn[3] = '\0';
+                output_message.msn_seq = output_message.no[3];
+
                 i = 0;
                 while i < 6 && k < self.blk.len - 1 {
                     output_message.flight_id[i] = self.blk.txt[k] as char;
