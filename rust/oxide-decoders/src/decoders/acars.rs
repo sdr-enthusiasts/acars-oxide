@@ -1062,6 +1062,7 @@ impl ACARSDecoder {
             }
 
             let mut txt_len = self.blk.len - k - 1;
+            debug!("txt_len: {}", txt_len);
 
             // Extract sublabel and MFI if present
             let offset = self.acars_extract_sublabel_and_mfi(&mut output_message, k);
