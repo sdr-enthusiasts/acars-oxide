@@ -876,7 +876,7 @@ impl ACARSDecoder {
             return;
         }
         if pn > 0 {
-            info!(
+            warn!(
                 "[{: <13}] Initial parity error{}: {}",
                 format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
                 if pn > 1 { "s" } else { "" },
@@ -894,7 +894,7 @@ impl ACARSDecoder {
         crc = self.update_crc(crc, self.blk.crc[0] as u32);
         crc = self.update_crc(crc, self.blk.crc[1] as u32);
         if crc != 0 {
-            error!(
+            warn!(
                 "[{: <13}] CRC error",
                 format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
             );
