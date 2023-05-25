@@ -790,7 +790,6 @@ impl ACARSDecoder {
             }
             Err(ACARSDecodingError::FixPR)
         } else {
-            debug!("No more parity errors. CRC {}", crc);
             /* end of recursion : no more parity error */
             if crc == 0 {
                 return Ok(());
