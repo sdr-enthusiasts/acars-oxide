@@ -21,12 +21,12 @@ fn main() {
     let sample_rate = 2000000;
     let center_freq = 131000000;
     let rtl_mult = 160;
-    let sample_size = 1024 * 160 * 2; // rtl buf z * rtl_mult * 2
+    let sample_size = 1024 * rtl_mult * 2; // rtl buf z * rtl_mult * 2
     let device_index = 1;
     let gain = 421;
     let ppm = 0;
 
-    let mut num_samples = 100;
+    let mut num_samples = 5;
 
     let (mut ctl, mut reader) = rtlsdr_mt::open(device_index).unwrap();
     ctl.disable_agc().unwrap();
@@ -34,11 +34,13 @@ fn main() {
     ctl.set_center_freq(center_freq).unwrap();
     ctl.set_ppm(ppm).unwrap();
 
-    reader.read_async(4, sample_size, |bytes| {
-        while num_samples > 0 {
-            num_samples -= 1;
-        }
-    });
+    reader
+        .read_async(4, sample_size, |bytes| {
+            while num_samples > 0 {
+                num_samples -= 1;
+            }
+        })
+        .unwrap();
 
     ctl.cancel_async_read();
 }
