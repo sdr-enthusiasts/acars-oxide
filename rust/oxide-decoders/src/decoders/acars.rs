@@ -275,31 +275,31 @@ impl Display for DownlinkStatus {
     }
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-enum ReassemblyStatus {
-    Unknown,
-    Complete,
-    InProgress,
-    Skipped,
-    Duplicate,
-    FragOutOfSequence,
-    ArgsInvalid,
-}
+// #[allow(dead_code)]
+// #[derive(Debug, Clone)]
+// enum ReassemblyStatus {
+//     Unknown,
+//     Complete,
+//     InProgress,
+//     Skipped,
+//     Duplicate,
+//     FragOutOfSequence,
+//     ArgsInvalid,
+// }
 
-impl Display for ReassemblyStatus {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ReassemblyStatus::Unknown => write!(f, "Unknown"),
-            ReassemblyStatus::Complete => write!(f, "Complete"),
-            ReassemblyStatus::InProgress => write!(f, "In Progress"),
-            ReassemblyStatus::Skipped => write!(f, "Skipped"),
-            ReassemblyStatus::Duplicate => write!(f, "Duplicate"),
-            ReassemblyStatus::FragOutOfSequence => write!(f, "Fragment out of sequence"),
-            ReassemblyStatus::ArgsInvalid => write!(f, "Invalid arguments"),
-        }
-    }
-}
+// impl Display for ReassemblyStatus {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             ReassemblyStatus::Unknown => write!(f, "Unknown"),
+//             ReassemblyStatus::Complete => write!(f, "Complete"),
+//             ReassemblyStatus::InProgress => write!(f, "In Progress"),
+//             ReassemblyStatus::Skipped => write!(f, "Skipped"),
+//             ReassemblyStatus::Duplicate => write!(f, "Duplicate"),
+//             ReassemblyStatus::FragOutOfSequence => write!(f, "Fragment out of sequence"),
+//             ReassemblyStatus::ArgsInvalid => write!(f, "Invalid arguments"),
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone)]
 enum AckStatus {
@@ -337,14 +337,14 @@ pub struct AssembledACARSMessage {
     downlink_status: DownlinkStatus,
     msn: Option<[char; 3]>,
     msn_seq: Option<char>,
-    reassembly_status: ReassemblyStatus,
+    // reassembly_status: ReassemblyStatus,
 }
 
 impl Display for AssembledACARSMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Frequency: {}, Mode: {}, {}Downlink Status: {}, Ack: {}, Label: {}, {}{}{}{}{}Reception Errors: {}, Signal Level: {}, {}{}Reassembly Status: {}{}{}",
+            "Frequency: {}, Mode: {}, {}Downlink Status: {}, Ack: {}, Label: {}, {}{}{}{}{}Reception Errors: {}, Signal Level: {}, {}{}{}",
             self.frequency,
             self.mode,
             self.get_tail_addr_display(),
@@ -360,8 +360,8 @@ impl Display for AssembledACARSMessage {
             self.lvl,
             self.get_msn_display(),
             self.get_msn_seq_display(),
-            self.reassembly_status,
-            if self.txt.is_some() { ", " } else { "" },
+            // self.reassembly_status,
+            // if self.txt.is_some() { ", " } else { "" },
             self.get_text_display(),
         )
     }
@@ -388,7 +388,7 @@ impl AssembledACARSMessage {
             lvl: 0.0,
             msn: None,
             msn_seq: None,
-            reassembly_status: ReassemblyStatus::Skipped,
+            // reassembly_status: ReassemblyStatus::Skipped,
         }
     }
 
