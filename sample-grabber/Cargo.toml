@@ -1,0 +1,10 @@
+[package]
+name = "sample-grabber"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rtlsdr_mt = "2.0.0"
+rtlsdr_sys = "1.1.2"
