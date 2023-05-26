@@ -344,14 +344,14 @@ impl Display for AssembledACARSMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Frequency: {}, Mode: {}, {}Downlink Status: {}, Ack: {}, Label: {}, BID: {}, {}{}{}{}ERR: {}, Signal Level: {}, {}{}Reassembly Status: {}{}{}",
+            "Frequency: {}, Mode: {}, {}Downlink Status: {}, Ack: {}, Label: {}, {}{}{}{}{}ERR: {}, Signal Level: {}, {}{}Reassembly Status: {}{}{}",
             self.frequency,
             self.mode,
             self.get_tail_addr_display(),
             self.downlink_status,
             self.ack,
             self.label.iter().collect::<String>().trim(),
-            self.bid,
+            self.get_bid_display(),
             self.get_no_display(),
             self.get_flight_id_display(),
             self.get_sub_label_display(),
@@ -500,6 +500,17 @@ impl AssembledACARSMessage {
                 }
             }
             None => "".to_string(),
+        }
+    }
+
+    fn get_bid_display(&self) -> String {
+        if self.bid as u8 == 0 {
+            "".to_string()
+        } else {
+            match self.bid {
+                ' ' => "".to_string(),
+                _ => format!("Block ID: {}, ", self.bid),
+            }
         }
     }
 }
