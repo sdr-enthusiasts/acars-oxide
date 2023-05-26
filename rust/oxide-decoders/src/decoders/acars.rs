@@ -325,7 +325,7 @@ pub struct AssembledACARSMessage {
     label: [char; 2],
     bid: char,
     no: [char; 4],
-    flight_id: [char; 6],
+    flight_id: Option<[char; 6]>,
     sublabel: Option<[char; 2]>,
     mfi: Option<[char; 2]>,
     bs: char,
@@ -346,7 +346,7 @@ impl Display for AssembledACARSMessage {
 
         write!(
             f,
-            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {:?}, mfi: {:?}, txt: {:?}, err: {}, lvl: {}, msn: {:?}, msn seq: {:?}, reassembly status: {}",
+            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {:?}, sublabel: {:?}, mfi: {:?}, txt: {:?}, err: {}, lvl: {}, msn: {:?}, msn seq: {:?}, reassembly status: {}",
             self.frequency,
             self.mode,
             self.tail_addr.iter().collect::<String>().trim(),
@@ -355,7 +355,7 @@ impl Display for AssembledACARSMessage {
             self.label.iter().collect::<String>().trim(),
             self.bid,
             self.no.iter().collect::<String>().trim(),
-            self.flight_id.iter().collect::<String>().trim(),
+            self.flight_id,
             self.sublabel,
             self.mfi,
             self.txt,
@@ -379,7 +379,7 @@ impl AssembledACARSMessage {
             label: [' '; 2],
             bid: ' ',
             no: [' '; 4],
-            flight_id: [' '; 6],
+            flight_id: None,
             sublabel: None,
             mfi: None,
             bs: ' ',
@@ -1029,11 +1029,14 @@ impl ACARSDecoder {
                 output_message.msn_seq = Some(output_message.no[3]);
 
                 i = 0;
+                let mut output_flight_id = [' '; 6];
                 while i < 6 && k < self.blk.len - 1 {
-                    output_message.flight_id[i] = self.blk.txt[k] as char;
+                    output_flight_id[i] = self.blk.txt[k] as char;
                     i += 1;
                     k += 1;
                 }
+
+                output_message.flight_id = Some(output_flight_id);
 
                 //outflg = true;
             }
