@@ -24,7 +24,6 @@ extern crate log;
 
 pub mod decoders {
     pub mod acars;
-    pub mod acars_labels;
 }
 
 #[derive(Debug, Clone)]
