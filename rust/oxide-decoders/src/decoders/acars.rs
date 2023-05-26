@@ -346,24 +346,25 @@ impl Display for AssembledACARSMessage {
 
         write!(
             f,
-            "frequency: {}, mode: {}, tail addr: {:?}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {:?}, flight id: {:?}, sublabel: {:?}, mfi: {:?}, txt: {:?}, err: {}, lvl: {}, msn: {:?}, msn seq: {:?}, reassembly status: {}",
+            "Frequency: {}, Mode: {}, {}Downlink Status: {}, Ack: {}, Label: {}, BID: {}, {}{}{}{}ERR: {}, Signal Level: {}, {}{}Reassembly Status: {}{}{}",
             self.frequency,
             self.mode,
-            self.tail_addr,
+            self.get_tail_addr_display(),
             self.downlink_status,
             self.ack,
             self.label.iter().collect::<String>().trim(),
             self.bid,
-            self.no,
-            self.flight_id,
-            self.sublabel,
-            self.mfi,
-            self.txt,
+            self.get_no_display(),
+            self.get_flight_id_display(),
+            self.get_sub_label_display(),
+            self.get_mfi_display(),
             self.err,
             self.lvl,
-            self.msn,
-            self.msn_seq,
-            self.reassembly_status
+            self.get_msn_display(),
+            self.get_msn_seq_display(),
+            self.reassembly_status,
+            if self.txt.is_some() { ", " } else { "" },
+            self.get_text_display(),
         )
     }
 }
@@ -390,6 +391,62 @@ impl AssembledACARSMessage {
             msn: None,
             msn_seq: None,
             reassembly_status: ReassemblyStatus::Skipped,
+        }
+    }
+
+    fn get_text_display(&self) -> String {
+        match &self.txt {
+            Some(txt) => format!("Text: {}", txt.iter().collect::<String>()),
+            None => "".to_string(),
+        }
+    }
+
+    fn get_tail_addr_display(&self) -> String {
+        match &self.tail_addr {
+            Some(tail_addr) => format!("Tail: {}, ", tail_addr.iter().collect::<String>()),
+            None => "".to_string(),
+        }
+    }
+
+    fn get_no_display(&self) -> String {
+        match &self.no {
+            Some(no) => format!("No: {}, ", no.iter().collect::<String>()),
+            None => "".to_string(),
+        }
+    }
+
+    fn get_flight_id_display(&self) -> String {
+        match &self.flight_id {
+            Some(flight_id) => format!("Flight ID: {}, ", flight_id.iter().collect::<String>()),
+            None => "".to_string(),
+        }
+    }
+
+    fn get_sub_label_display(&self) -> String {
+        match &self.sublabel {
+            Some(sublabel) => format!("Sublabel: {}, ", sublabel.iter().collect::<String>()),
+            None => "".to_string(),
+        }
+    }
+
+    fn get_mfi_display(&self) -> String {
+        match &self.mfi {
+            Some(mfi) => format!("MFI: {}, ", mfi.iter().collect::<String>()),
+            None => "".to_string(),
+        }
+    }
+
+    fn get_msn_display(&self) -> String {
+        match &self.msn {
+            Some(msn) => format!("MSN: {}, ", msn.iter().collect::<String>()),
+            None => "".to_string(),
+        }
+    }
+
+    fn get_msn_seq_display(&self) -> String {
+        match &self.msn_seq {
+            Some(msn_seq) => format!("MSN Seq: {}, ", msn_seq),
+            None => "".to_string(),
         }
     }
 }
