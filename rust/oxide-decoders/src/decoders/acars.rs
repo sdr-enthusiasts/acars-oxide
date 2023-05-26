@@ -324,7 +324,7 @@ pub struct AssembledACARSMessage {
     ack: AckStatus,
     label: [char; 2],
     bid: char,
-    no: [char; 4],
+    no: Option<[char; 4]>,
     flight_id: Option<[char; 6]>,
     sublabel: Option<[char; 2]>,
     mfi: Option<[char; 2]>,
@@ -346,7 +346,7 @@ impl Display for AssembledACARSMessage {
 
         write!(
             f,
-            "frequency: {}, mode: {}, tail addr: {:?}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {:?}, sublabel: {:?}, mfi: {:?}, txt: {:?}, err: {}, lvl: {}, msn: {:?}, msn seq: {:?}, reassembly status: {}",
+            "frequency: {}, mode: {}, tail addr: {:?}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {:?}, flight id: {:?}, sublabel: {:?}, mfi: {:?}, txt: {:?}, err: {}, lvl: {}, msn: {:?}, msn seq: {:?}, reassembly status: {}",
             self.frequency,
             self.mode,
             self.tail_addr,
@@ -354,7 +354,7 @@ impl Display for AssembledACARSMessage {
             self.ack,
             self.label.iter().collect::<String>().trim(),
             self.bid,
-            self.no.iter().collect::<String>().trim(),
+            self.no,
             self.flight_id,
             self.sublabel,
             self.mfi,
@@ -378,7 +378,7 @@ impl AssembledACARSMessage {
             ack: AckStatus::Nack,
             label: [' '; 2],
             bid: ' ',
-            no: [' '; 4],
+            no: None,
             flight_id: None,
             sublabel: None,
             mfi: None,
@@ -1012,24 +1012,27 @@ impl ACARSDecoder {
         if output_message.bs != 0x03 as char {
             if is_downlink {
                 /* message no */
+                let mut no: [char; 4] = [' '; 4];
                 while i < 4 && k < self.blk.len - 1 {
-                    output_message.no[i] = self.blk.txt[k] as char;
+                    no[i] = self.blk.txt[k] as char;
                     i += 1;
                     k += 1;
                 }
+
+                output_message.no = Some(no);
 
                 /* The 3-char prefix is used in reassembly hash table key, so we need */
                 /* to store the MSN separately as prefix and seq character. */
                 i = 0;
                 let mut output_msn: [char; 3] = [' '; 3];
                 while i < 3 {
-                    output_msn[i] = output_message.no[i];
+                    output_msn[i] = no[i];
                     i += 1;
                 }
 
                 output_message.msn = Some(output_msn);
 
-                output_message.msn_seq = Some(output_message.no[3]);
+                output_message.msn_seq = Some(no[3]);
 
                 i = 0;
                 let mut output_flight_id = [' '; 6];
