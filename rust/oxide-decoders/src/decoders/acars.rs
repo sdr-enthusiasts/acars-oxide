@@ -821,7 +821,7 @@ impl ACARSDecoder {
                 //syndrom[i + 8 * (blk->len - *pr + 1)]
                 let test = crc ^ SYNDROM[i + 8 * (self.blk.len - pr[pr_index] as usize + 1)];
                 if self.fixprerr(test, pr, pr_index + 1, pn - 1).is_ok() {
-                    self.blk.txt[self.blk.txt[pr[pr_index] as usize] as usize] ^= 1 << i;
+                    self.blk.txt[pr[pr_index] as usize] ^= 1 << i;
                     return Ok(());
                 }
             }
@@ -942,12 +942,13 @@ impl ACARSDecoder {
 
         // /* redo parity checking and removing */
         pn = 0;
-        for i in 0..self.blk.len {
-            if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
+        for blk_item in self.blk.txt.iter_mut().take(self.blk.len) {
+            if (NUMBITS[*blk_item as usize] & 1) == 0 {
                 pn += 1;
             }
-            self.blk.txt[i] &= 0x7f;
+            *blk_item &= 0x7f;
         }
+
         if pn > 0 {
             error!(
                 "[{: <13}] Final parity error{}: {}",
