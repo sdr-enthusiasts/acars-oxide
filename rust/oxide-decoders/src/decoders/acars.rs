@@ -335,8 +335,8 @@ pub struct AssembledACARSMessage {
     lvl: f32,
     frequency: f32,
     downlink_status: DownlinkStatus,
-    msn: [char; 3],
-    msn_seq: char,
+    msn: Option<[char; 3]>,
+    msn_seq: Option<char>,
     reassembly_status: ReassemblyStatus,
 }
 
@@ -346,7 +346,7 @@ impl Display for AssembledACARSMessage {
 
         write!(
             f,
-            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {:?}, mfi: {:?}, txt: {:?}, err: {}, lvl: {}, msn: {}, msn seq: {}, reassembly status: {}",
+            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {:?}, mfi: {:?}, txt: {:?}, err: {}, lvl: {}, msn: {:?}, msn seq: {:?}, reassembly status: {}",
             self.frequency,
             self.mode,
             self.tail_addr.iter().collect::<String>().trim(),
@@ -361,7 +361,7 @@ impl Display for AssembledACARSMessage {
             self.txt,
             self.err,
             self.lvl,
-            self.msn.iter().collect::<String>().trim(),
+            self.msn,
             self.msn_seq,
             self.reassembly_status
         )
@@ -387,8 +387,8 @@ impl AssembledACARSMessage {
             txt: None,
             err: 0,
             lvl: 0.0,
-            msn: [' '; 3],
-            msn_seq: ' ',
+            msn: None,
+            msn_seq: None,
             reassembly_status: ReassemblyStatus::Skipped,
         }
     }
@@ -1018,12 +1018,15 @@ impl ACARSDecoder {
                 /* The 3-char prefix is used in reassembly hash table key, so we need */
                 /* to store the MSN separately as prefix and seq character. */
                 i = 0;
+                let mut output_msn: [char; 3] = [' '; 3];
                 while i < 3 {
-                    output_message.msn[i] = output_message.no[i];
+                    output_msn[i] = output_message.no[i];
                     i += 1;
                 }
 
-                output_message.msn_seq = output_message.no[3];
+                output_message.msn = Some(output_msn);
+
+                output_message.msn_seq = Some(output_message.no[3]);
 
                 i = 0;
                 while i < 6 && k < self.blk.len - 1 {
