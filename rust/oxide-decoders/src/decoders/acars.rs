@@ -1079,13 +1079,12 @@ impl ACARSDecoder {
         for _ in 0..7_usize {
             if self.blk.txt[k] != b'.' {
                 // ensure self.blk.txt[k] is A-Z or 0-9
-                if (self.blk.txt[k] < b'0' || self.blk.txt[k] > b'9')
-                    && (self.blk.txt[k] < b'A' || self.blk.txt[k] > b'Z')
+                if (self.blk.txt[k] >= b'0' && self.blk.txt[k] <= b'9')
+                    || (self.blk.txt[k] >= b'A' && self.blk.txt[k] <= b'Z')
                 {
-                    continue;
+                    tail_addr[j] = self.blk.txt[k] as char;
                 }
 
-                tail_addr[j] = self.blk.txt[k] as char;
                 j += 1;
             }
             k += 1;
