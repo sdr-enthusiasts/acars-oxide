@@ -11,7 +11,7 @@ members = [
 
 [workspace.package]
 edition = "2021"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Fred Clausen"]
 description = "ACARS Oxide. A utility to receive, via librtlsdr and RTL-SDR dongle(s), ACARS and VDLM2 messages."
 documentation = "https://github.com/sdr-enthusiasts/acars-oxide"

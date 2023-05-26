@@ -1,4 +1,4 @@
-// Copyright (C) 2023  Fred Clausen
+// Copyright (C) 2023 Fred Clausen
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -29,6 +29,9 @@ use tokio::time::{sleep, Duration};
 async fn main() {
     let args: OxideInput = OxideInput::parse();
     args.logging.enable_logging();
+    // print current version
+    info!("ACARS Oxide v{}", env!("CARGO_PKG_VERSION"));
+
     debug!(
         "Starting ACARS Oxide with the following options: {:#?}",
         args

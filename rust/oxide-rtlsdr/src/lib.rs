@@ -1,4 +1,4 @@
-// Copyright (C) 2023  Fred Clausen
+// Copyright (C) 2023 Fred Clausen
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -94,8 +94,9 @@ impl RtlSdr {
 
     fn get_intrate(&self) -> i32 {
         match self.decoder_type {
-            ValidDecoderType::ACARS => acars::INTRATE,
+            ValidDecoderType::ACARS => acars::INTRATE as i32,
             ValidDecoderType::VDL2 => 0,
+            ValidDecoderType::HFDL => 0,
         }
     }
 
@@ -103,6 +104,7 @@ impl RtlSdr {
         match self.decoder_type {
             ValidDecoderType::ACARS => acars::RTLOUTBUFSZ,
             ValidDecoderType::VDL2 => 0,
+            ValidDecoderType::HFDL => 0,
         }
     }
 
@@ -309,14 +311,11 @@ impl RtlSdr {
 
                         for m in 0..rtloutbufz {
                             for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
-                                *vb_item = (bytes_iterator
-                                    .next()
-                                    .expect("Ran out of bytes!")
-                                    .to_owned() as f32
-                                    - 127.37)
-                                    + (bytes_iterator.next().expect("Ran out of bytes!").to_owned()
-                                        as f32
-                                        - 127.37)
+                                *vb_item = (*bytes_iterator.next().expect("Ran out of bytes!")
+                                    as f32
+                                    - 127.37_f32)
+                                    + (*bytes_iterator.next().expect("Ran out of bytes!") as f32
+                                        - 127.37_f32)
                                         * Complex::i();
                             }
 

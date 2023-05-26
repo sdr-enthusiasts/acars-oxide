@@ -1,4 +1,4 @@
-// Copyright (C) 2023  Fred Clausen
+// Copyright (C) 2023 Fred Clausen
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -25,11 +25,14 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tokio::sync::mpsc::UnboundedSender;
 
-pub const INTRATE: i32 = 12500;
+pub const INTRATE: usize = 12500;
+pub const INTRATE_F32: f32 = 12500.0;
 pub const RTLOUTBUFSZ: usize = 1024;
-const FLEN: i32 = (INTRATE / 1200) + 1;
+const FLEN: usize = (INTRATE / 1200) + 1;
 const MFLTOVER: usize = 12;
-const FLENO: usize = FLEN as usize * MFLTOVER + 1;
+const MFLTOVER_F32: f32 = 12.0;
+const FLENO: usize = FLEN * MFLTOVER + 1;
+const FLENO_F32: f32 = FLENO as f32;
 const PLLG: f32 = 38e-4;
 const PLLC: f32 = 0.52;
 const SYN: u8 = 0x16;
@@ -257,7 +260,7 @@ enum ACARSState {
     End,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum DownlinkStatus {
     AirToGround,
     GroundToAir,
@@ -271,46 +274,95 @@ impl Display for DownlinkStatus {
         }
     }
 }
+
+// #[allow(dead_code)]
+// #[derive(Debug, Clone)]
+// enum ReassemblyStatus {
+//     Unknown,
+//     Complete,
+//     InProgress,
+//     Skipped,
+//     Duplicate,
+//     FragOutOfSequence,
+//     ArgsInvalid,
+// }
+
+// impl Display for ReassemblyStatus {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             ReassemblyStatus::Unknown => write!(f, "Unknown"),
+//             ReassemblyStatus::Complete => write!(f, "Complete"),
+//             ReassemblyStatus::InProgress => write!(f, "In Progress"),
+//             ReassemblyStatus::Skipped => write!(f, "Skipped"),
+//             ReassemblyStatus::Duplicate => write!(f, "Duplicate"),
+//             ReassemblyStatus::FragOutOfSequence => write!(f, "Fragment out of sequence"),
+//             ReassemblyStatus::ArgsInvalid => write!(f, "Invalid arguments"),
+//         }
+//     }
+// }
+
+#[derive(Debug, Clone)]
+enum AckStatus {
+    Nack,
+    Ack(char),
+}
+
+impl Display for AckStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AckStatus::Nack => write!(f, "NACK"),
+            AckStatus::Ack(ack_status) => write!(f, "ACK({})", ack_status),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct AssembledACARSMessage {
     mode: char,
-    tail_addr: [char; 8],
-    ack: char,
-    label: [char; 3],
+    tail_addr: Option<[char; 7]>,
+    ack: AckStatus,
+    label: [char; 2],
     bid: char,
-    no: [char; 5],
-    flight_id: [char; 7],
-    sublabel: [char; 3],
-    mfi: [char; 3],
+    no: Option<[char; 4]>,
+    flight_id: Option<[char; 6]>,
+    sublabel: Option<[char; 2]>,
+    mfi: Option<[char; 2]>,
     bs: char,
     be: char,
-    txt: Vec<char>,
+    txt: Option<Vec<char>>,
     err: u8,
     lvl: f32,
     frequency: f32,
     downlink_status: DownlinkStatus,
+    msn: Option<[char; 3]>,
+    msn_seq: Option<char>,
+    // reassembly_status: ReassemblyStatus,
 }
 
 impl Display for AssembledACARSMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {}, mfi: {}, txt: {}, err: {}, lvl: {}",
+            "Frequency: {}, Mode: {}, {}Downlink Status: {}, Ack: {}, Label: {}, {}{}{}{}{}Reception Errors: {}, Signal Level: {}, {}{}{}",
             self.frequency,
             self.mode,
-            self.tail_addr.iter().collect::<String>().trim(),
+            self.get_tail_addr_display(),
             self.downlink_status,
             self.ack,
             self.label.iter().collect::<String>().trim(),
-            self.bid,
-            self.no.iter().collect::<String>().trim(),
-            self.flight_id.iter().collect::<String>().trim(),
-            self.sublabel.iter().collect::<String>().trim(),
-            self.mfi.iter().collect::<String>().trim(),
-            self.txt.iter().collect::<String>().trim(),
+            self.get_bid_display(),
+            self.get_no_display(),
+            self.get_flight_id_display(),
+            self.get_sub_label_display(),
+            self.get_mfi_display(),
             self.err,
-            self.lvl
+            self.lvl,
+            self.get_msn_display(),
+            self.get_msn_seq_display(),
+            // self.reassembly_status,
+            // if self.txt.is_some() { ", " } else { "" },
+            self.get_text_display(),
         )
     }
 }
@@ -320,20 +372,145 @@ impl AssembledACARSMessage {
         Self {
             mode: ' ',
             frequency: 0.0,
-            tail_addr: [' '; 8],
+            tail_addr: None,
             downlink_status: DownlinkStatus::AirToGround,
-            ack: ' ',
-            label: [' '; 3],
+            ack: AckStatus::Nack,
+            label: [' '; 2],
             bid: ' ',
-            no: [' '; 5],
-            flight_id: [' '; 7],
-            sublabel: [' '; 3],
-            mfi: [' '; 3],
+            no: None,
+            flight_id: None,
+            sublabel: None,
+            mfi: None,
             bs: ' ',
             be: ' ',
-            txt: Vec::new(),
+            txt: None,
             err: 0,
             lvl: 0.0,
+            msn: None,
+            msn_seq: None,
+            // reassembly_status: ReassemblyStatus::Skipped,
+        }
+    }
+
+    fn get_text_display(&self) -> String {
+        match &self.txt {
+            Some(txt) => {
+                if txt.len() > 1 {
+                    format!("Text: {}", txt.iter().collect::<String>())
+                } else {
+                    "".to_string()
+                }
+            }
+            None => "".to_string(),
+        }
+    }
+
+    fn get_tail_addr_display(&self) -> String {
+        match &self.tail_addr {
+            Some(tail_addr) => {
+                let output = tail_addr.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("Tail: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
+            None => "".to_string(),
+        }
+    }
+
+    fn get_no_display(&self) -> String {
+        match &self.no {
+            Some(no) => {
+                let output = no.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("No: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
+            None => "".to_string(),
+        }
+    }
+
+    fn get_flight_id_display(&self) -> String {
+        match &self.flight_id {
+            Some(flight_id) => {
+                let output = flight_id.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("Flight ID: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
+            None => "".to_string(),
+        }
+    }
+
+    fn get_sub_label_display(&self) -> String {
+        match &self.sublabel {
+            Some(sublabel) => {
+                let output = sublabel.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("Sublabel: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
+            None => "".to_string(),
+        }
+    }
+
+    fn get_mfi_display(&self) -> String {
+        match &self.mfi {
+            Some(mfi) => {
+                let output = mfi.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("MFI: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
+            None => "".to_string(),
+        }
+    }
+
+    fn get_msn_display(&self) -> String {
+        match &self.msn {
+            Some(msn) => {
+                let output = msn.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("MSN: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
+            None => "".to_string(),
+        }
+    }
+
+    fn get_msn_seq_display(&self) -> String {
+        match &self.msn_seq {
+            Some(msn_seq) => {
+                let output = String::from(*msn_seq);
+                if !output.trim().is_empty() {
+                    format!("MSN Seq: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
+            None => "".to_string(),
+        }
+    }
+
+    fn get_bid_display(&self) -> String {
+        if self.bid as u8 == 0 {
+            "".to_string()
+        } else {
+            match self.bid {
+                ' ' => "".to_string(),
+                _ => format!("Block ID: {}, ", self.bid),
+            }
         }
     }
 }
@@ -342,7 +519,7 @@ impl AssembledACARSMessage {
 struct Mskblks {
     chn: i32,
     timeval: u64,
-    len: i32,
+    len: usize,
     pub err: usize,
     lvl: f32,
     pub txt: [u8; 250],
@@ -386,7 +563,7 @@ impl Mskblks {
         self.timeval = timeval;
     }
 
-    pub fn set_len(&mut self, len: i32) {
+    pub fn set_len(&mut self, len: usize) {
         self.len = len;
     }
 
@@ -398,7 +575,7 @@ impl Mskblks {
         self.txt[index] = txt;
     }
 
-    pub fn len(&self) -> i32 {
+    pub fn len(&self) -> usize {
         self.len
     }
 }
@@ -406,7 +583,7 @@ impl Mskblks {
 #[derive(Clone)]
 pub struct ACARSDecoder {
     channel_number: i32,
-    freq: i32,
+    freq: f32,
     wf: [Complex<f32>; 192],
     dm_buffer: [f32; RTLOUTBUFSZ],
     msk_phi: f32,
@@ -416,7 +593,7 @@ pub struct ACARSDecoder {
     msk_bit_count: i32,
     msk_s: u32,
     idx: u32,
-    inb: [Complex<f32>; FLEN as usize],
+    inb: [Complex<f32>; FLEN],
     outbits: u8, // original was unsigned char.....
     nbits: i32,
     acars_state: ACARSState,
@@ -448,8 +625,8 @@ impl ACARSDecoder {
         let mut h: [f32; FLENO] = [0.0; FLENO];
         for (i, h_item) in h.iter_mut().enumerate().take(FLENO) {
             *h_item = f32::cos(
-                2.0 * std::f32::consts::PI * 600.0 / INTRATE as f32 / MFLTOVER as f32
-                    * (i as f32 - (FLENO as f32 - 1.0) / 2.0),
+                2.0 * std::f32::consts::PI * 600.0 / INTRATE_F32 / MFLTOVER_F32
+                    * (i as f32 - (FLENO_F32 - 1.0) / 2.0),
             );
             if *h_item < 0.0 {
                 *h_item = 0.0;
@@ -458,7 +635,7 @@ impl ACARSDecoder {
 
         Self {
             channel_number,
-            freq,
+            freq: freq as f32 / 1000000.0,
             wf,
             dm_buffer: [0.0; RTLOUTBUFSZ],
             msk_phi: 0.0,
@@ -468,7 +645,7 @@ impl ACARSDecoder {
             msk_bit_count: 0,
             msk_s: 0,
             idx: 0,
-            inb: [Complex::new(0.0, 0.0); FLEN as usize],
+            inb: [Complex::new(0.0, 0.0); FLEN],
             outbits: 0,
             nbits: 8,
             acars_state: ACARSState::Wsyn,
@@ -482,7 +659,7 @@ impl ACARSDecoder {
         /* MSK demod */
 
         for in_ in &mut self.dm_buffer.into_iter().take(len) {
-            let s: f32 = 1800.0 / INTRATE as f32 * 2.0 * std::f32::consts::PI + self.msk_df;
+            let s: f32 = 1800.0 / INTRATE_F32 * 2.0 * std::f32::consts::PI + self.msk_df;
             let mut v: Complex<f32> = Complex::new(0.0, 0.0);
             let mut o: f32;
 
@@ -506,16 +683,14 @@ impl ACARSDecoder {
                 self.msk_clk -= 3.0 * std::f32::consts::PI / 2.0;
 
                 /* matched filter */
-                o = MFLTOVER as f32 * (self.msk_clk / s + 0.5);
-                if o > MFLTOVER as f32 {
-                    o = MFLTOVER as f32
+                o = MFLTOVER_F32 * (self.msk_clk / s + 0.5);
+                if o > MFLTOVER_F32 {
+                    o = MFLTOVER_F32
                 };
 
-                for j in 0..FLEN as usize {
-                    v = v.add(
-                        self.h[o as usize] * self.inb[(j + self.idx as usize) % FLEN as usize],
-                    );
-                    o += MFLTOVER as f32;
+                for j in 0..FLEN {
+                    v = v.add(self.h[o as usize] * self.inb[(j + self.idx as usize) % FLEN]);
+                    o += MFLTOVER_F32;
                 }
 
                 /* normalize */
@@ -604,10 +779,7 @@ impl ACARSDecoder {
                 self.reset_acars();
             }
             ACARSState::Soh1 => {
-                trace!(
-                    "[{: <13}] SOH1",
-                    format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
-                );
+                trace!("[{: <13}] SOH1", format!("{}:{}", "ACARS", self.freq));
                 // let test = AssembledACARSMessage::new();
                 // if let Some(ref mut output_channel) = self.output_channel {
                 //     trace!("sending");
@@ -638,25 +810,18 @@ impl ACARSDecoder {
                 self.reset_acars();
             }
             ACARSState::Txt => {
-                trace!(
-                    "[{: <13}] TXT",
-                    format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
-                );
-                self.blk
-                    .set_text_by_index(self.blk.len as usize, self.outbits);
+                trace!("[{: <13}] TXT", format!("{}:{}", "ACARS", self.freq));
+                self.blk.set_text_by_index(self.blk.len, self.outbits);
                 self.blk.len += 1;
 
                 if (NUMBITS[self.outbits as usize] & 1) == 0 {
-                    trace!(
-                        "[{: <13}] TXT ERROR",
-                        format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
-                    );
+                    trace!("[{: <13}] TXT ERROR", format!("{}:{}", "ACARS", self.freq));
                     self.blk.err += 1;
 
                     if self.blk.err > MAXPERR + 1 {
                         trace!(
                             "[{: <13}] TXT TOO MANY ERRORS",
-                            format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+                            format!("{}:{}", "ACARS", self.freq)
                         );
                         self.reset_acars();
                         return;
@@ -669,8 +834,8 @@ impl ACARSDecoder {
                 }
                 if self.blk.len > 20 && self.outbits == DLE {
                     self.blk.len -= 3;
-                    self.blk.crc[0] = self.blk.txt[self.blk.len as usize];
-                    self.blk.crc[1] = self.blk.txt[self.blk.len as usize + 1];
+                    self.blk.crc[0] = self.blk.txt[self.blk.len];
+                    self.blk.crc[1] = self.blk.txt[self.blk.len + 1];
                     self.acars_state = ACARSState::Crc2;
                     self.put_msg_label();
                 }
@@ -681,28 +846,19 @@ impl ACARSDecoder {
                 self.nbits = 8;
             }
             ACARSState::Crc1 => {
-                trace!(
-                    "[{: <13}] CRC1",
-                    format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
-                );
+                trace!("[{: <13}] CRC1", format!("{}:{}", "ACARS", self.freq));
                 self.blk.crc[0] = self.outbits;
                 self.acars_state = ACARSState::Crc2;
                 self.nbits = 8;
             }
 
             ACARSState::Crc2 => {
-                trace!(
-                    "[{: <13}] CRC2",
-                    format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
-                );
+                trace!("[{: <13}] CRC2", format!("{}:{}", "ACARS", self.freq));
                 self.blk.crc[1] = self.outbits;
                 self.put_msg_label();
             }
             ACARSState::End => {
-                trace!(
-                    "[{: <13}] END",
-                    format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
-                );
+                trace!("[{: <13}] END", format!("{}:{}", "ACARS", self.freq));
                 self.reset_acars();
                 self.nbits = 8;
             }
@@ -728,22 +884,20 @@ impl ACARSDecoder {
 
     fn update_crc(&self, crc: u32, c: u32) -> u32 {
         // #define update_crc(crc,c) crc= (crc>> 8)^crc_ccitt_table[(crc^(c))&0xff];
-        let mut crc: u32 = crc;
-        crc = (crc >> 8) ^ CRC[((crc ^ c) & 0xff) as usize];
-        crc
+        (crc >> 8) ^ CRC[((crc ^ c) & 0xff) as usize]
     }
 
     fn fixdberr(&mut self, crc: u32) -> Result<(), ACARSDecodingError> {
         /* test remaining error in crc */
         for item in SYNDROM.iter().take(16_usize) {
             if *item == crc {
-                return Err(ACARSDecodingError::FixDB);
+                return Ok(());
             }
         }
 
         /* test double error in bytes */
-        for k in 0..self.blk.len as usize {
-            let bo: usize = 8 * (self.blk.len as usize - k + 1);
+        for k in 0..self.blk.len {
+            let bo: usize = 8 * (self.blk.len - k + 1);
             for i in 0..8_usize {
                 for j in 0..8_usize {
                     if i == j {
@@ -752,12 +906,12 @@ impl ACARSDecoder {
                     if (crc ^ SYNDROM[i + bo] ^ SYNDROM[j + bo]) == 0 {
                         self.blk.txt[k] ^= 1 << i;
                         self.blk.txt[k] ^= 1 << j;
-                        return Err(ACARSDecodingError::FixDB);
+                        return Ok(());
                     }
                 }
             }
         }
-        Ok(())
+        Err(ACARSDecodingError::FixDB)
     }
 
     fn fixprerr(
@@ -770,25 +924,21 @@ impl ACARSDecoder {
         if pn > 0 {
             /* try to recursievly fix parity error */
             for i in 0..8 {
-                let test =
-                    crc ^ SYNDROM[i + 8 * (self.blk.len as usize - pr[pr_index] as usize + 1)];
+                //syndrom[i + 8 * (blk->len - *pr + 1)]
+                let test = crc ^ SYNDROM[i + 8 * (self.blk.len - pr[pr_index] as usize + 1)];
                 if self.fixprerr(test, pr, pr_index + 1, pn - 1).is_ok() {
-                    self.blk.txt[pr_index] ^= 1 << i;
+                    self.blk.txt[pr[pr_index] as usize] ^= 1 << i;
                     return Ok(());
                 }
-                // {
-                //     blk.txt[*pr] ^= (1 << i);
-                //     return Ok(());
-                // }
             }
             Err(ACARSDecodingError::FixPR)
         } else {
             /* end of recursion : no more parity error */
             if crc == 0 {
                 return Ok(());
-            };
+            }
 
-            /* test remainding error in crc */
+            /* test remaining error in crc */
             for item in SYNDROM.iter().take(16_usize) {
                 if *item == crc {
                     return Ok(());
@@ -805,7 +955,7 @@ impl ACARSDecoder {
             // too short
             error!(
                 "[{: <13}] Message too short",
-                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+                format!("{}:{}", "ACARS", self.freq)
             );
             return;
         }
@@ -816,13 +966,7 @@ impl ACARSDecoder {
 
         /* parity check */
         let mut pn: usize = 0;
-        for i in 0..self.blk.len as usize {
-            if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
-                if pn < MAXPERR {
-                    pr[pn] = i as u8;
-                }
-                pn += 1;
-            }
+        for i in 0..self.blk.len {
             if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
                 if pn < MAXPERR {
                     pr[pn] = i as u8;
@@ -831,16 +975,17 @@ impl ACARSDecoder {
             }
         }
         if pn > MAXPERR {
-            info!(
+            error!(
                 "[{: <13}] Too many parity errors",
-                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+                format!("{}:{}", "ACARS", self.freq)
             );
             return;
         }
         if pn > 0 {
-            info!(
-                "[{: <13}] Parity errors: {}",
-                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+            warn!(
+                "[{: <13}] Initial parity error{}: {}",
+                format!("{}:{}", "ACARS", self.freq),
+                if pn > 1 { "s" } else { "" },
                 pn
             );
         }
@@ -848,82 +993,76 @@ impl ACARSDecoder {
 
         /* crc check */
         let mut crc: u32 = 0;
-        for i in 0..self.blk.len as usize {
+        for i in 0..self.blk.len {
             crc = self.update_crc(crc, self.blk.txt[i] as u32);
         }
 
         crc = self.update_crc(crc, self.blk.crc[0] as u32);
         crc = self.update_crc(crc, self.blk.crc[1] as u32);
         if crc != 0 {
-            error!(
-                "[{: <13}] {} crc error",
-                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-                self.blk.chn + 1
-            );
+            warn!("[{: <13}] CRC error", format!("{}:{}", "ACARS", self.freq),);
         } else {
-            trace!(
-                "[{: <13}] CRC OK",
-                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
-            );
+            trace!("[{: <13}] CRC OK", format!("{}:{}", "ACARS", self.freq));
         }
 
-        // TODO: Fix Error correcting. It seems broken.
         /* try to fix error */
         if pn > 0 {
             match self.fixprerr(crc, &pr, 0, pn) {
                 Ok(_) => {}
                 Err(_) => {
                     error!(
-                        "[{: <13}] {:#} not able to fix errors",
-                        format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-                        self.blk.chn + 1
+                        "[{: <13}] Not able to fix parity errors",
+                        format!("{}:{}", "ACARS", self.freq),
                     );
                     return;
                 }
             }
             info!(
-                "[{: <13}] {:#} errors fixed",
-                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-                self.blk.chn + 1
+                "[{: <13}] {:#} total parity error{} fixed",
+                format!("{}:{}", "ACARS", self.freq),
+                pn,
+                if pn > 1 { "s" } else { "" }
             );
         } else if crc > 0 {
             match self.fixdberr(crc) {
                 Ok(_) => {}
                 Err(_) => {
                     error!(
-                        "[{: <13}] {:#} not able to fix errors",
-                        format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-                        self.blk.chn + 1
+                        "[{: <13}] Not able to fix CRC errors",
+                        format!("{}:{}", "ACARS", self.freq),
                     );
                     return;
                 }
             }
             info!(
-                "[{: <13}] {:#} errors fixed",
-                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
-                self.blk.chn + 1
+                "[{: <13}] CRC errors fixed",
+                format!("{}:{}", "ACARS", self.freq),
             );
         }
 
         // /* redo parity checking and removing */
         pn = 0;
-        for i in 0..self.blk.len as usize {
-            if (NUMBITS[self.blk.txt[i] as usize] & 1) == 0 {
+        for blk_item in self.blk.txt.iter_mut().take(self.blk.len) {
+            if (NUMBITS[*blk_item as usize] & 1) == 0 {
                 pn += 1;
             }
-            self.blk.txt[i] &= 0x7f;
+            *blk_item &= 0x7f;
         }
+
         if pn > 0 {
-            info!(
-                "[{: <13}] Parity errors: {}",
-                format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0),
+            error!(
+                "[{: <13}] Final parity error{}: {}",
+                format!("{}:{}", "ACARS", self.freq),
+                if pn > 1 { "s" } else { "" },
                 pn
             );
+
+            return;
         }
 
         trace!(
             "[{: <13}] Parity and CRC check complete",
-            format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+            format!("{}:{}", "ACARS", self.freq)
         );
 
         self.generate_output_message();
@@ -932,13 +1071,13 @@ impl ACARSDecoder {
     fn generate_output_message(&mut self) {
         trace!(
             "[{: <13}] Generating output message",
-            format!("{}:{}", "ACARS", self.freq as f32 / 1000000.0)
+            format!("{}:{}", "ACARS", self.freq)
         );
 
         let mut output_message = AssembledACARSMessage::new();
         output_message.lvl = self.blk.lvl;
         output_message.err = self.blk.err as u8;
-        output_message.frequency = self.freq as f32 / 1000000.0;
+        output_message.frequency = self.freq;
 
         let mut k: usize = 0;
         let mut j: usize = 0;
@@ -947,22 +1086,29 @@ impl ACARSDecoder {
         output_message.mode = self.blk.txt[k] as char;
         k += 1;
 
+        let mut tail_addr: [char; 7] = [' '; 7];
         for _ in 0..7_usize {
             if self.blk.txt[k] != b'.' {
-                output_message.tail_addr[j] = self.blk.txt[k] as char;
+                // ensure self.blk.txt[k] is A-Z or 0-9
+                if (self.blk.txt[k] >= b'0' && self.blk.txt[k] <= b'9')
+                    || (self.blk.txt[k] >= b'A' && self.blk.txt[k] <= b'Z')
+                {
+                    tail_addr[j] = self.blk.txt[k] as char;
+                }
+
                 j += 1;
             }
             k += 1;
         }
 
-        output_message.tail_addr[j] = '\0';
+        // Ensure we actually saved something as a tail address
+        if tail_addr[0] != ' ' {
+            output_message.tail_addr = Some(tail_addr);
+        }
 
-        //     /* ACK/NAK */
-        output_message.ack = self.blk.txt[k] as char;
-        if output_message.ack == 0x15 as char
-        // NAK is nonprintable
-        {
-            output_message.ack = '!';
+        /* ACK/NAK */
+        if self.blk.txt[k] != 0x15 {
+            output_message.ack = AckStatus::Ack(self.blk.txt[k] as char);
         }
 
         k += 1;
@@ -974,7 +1120,6 @@ impl ACARSDecoder {
             output_message.label[1] = 'd';
         }
         k += 1;
-        output_message.label[2] = '\0';
 
         output_message.bid = self.blk.txt[k] as char;
 
@@ -992,56 +1137,53 @@ impl ACARSDecoder {
 
         output_message.bs = self.blk.txt[k] as char;
         k += 1;
-        output_message.be = self.blk.txt[self.blk.len as usize - 1] as char;
+        output_message.be = self.blk.txt[self.blk.len - 1] as char;
 
         if output_message.bs != 0x03 as char {
             if is_downlink {
                 /* message no */
-                while i < 4 && k < self.blk.len as usize - 1 {
-                    output_message.no[i] = self.blk.txt[k] as char;
-                    i += 1;
-                    k += 1;
-                }
-                output_message.no[i] = '\0';
-                // libacars step. Skipping for now
-                // TODO: Don't skip
-                // #ifdef HAVE_LIBACARS
-                //             /* The 3-char prefix is used in reassembly hash table key, so we need */
-                //             /* to store the MSN separately as prefix and seq character. */
-                //             for (i = 0; i < 3; i++)
-                //                 msg.msn[i] = msg.no[i];
-                //             msg.msn[3] = '\0';
-                //             msg.msn_seq = msg.no[3];
-                // #endif
-                //             /* Flight id */
-                // for (i = 0; i < 6 && k < blk->len - 1; i++, k++) {
-                //     msg.fid[i] = blk->txt[k];
-                // }
-                i = 0;
-                while i < 6 && k < self.blk.len as usize - 1 {
-                    output_message.flight_id[i] = self.blk.txt[k] as char;
+                let mut no: [char; 4] = [' '; 4];
+                while i < 4 && k < self.blk.len - 1 {
+                    no[i] = self.blk.txt[k] as char;
                     i += 1;
                     k += 1;
                 }
 
-                output_message.flight_id[i] = '\0';
+                output_message.no = Some(no);
+
+                /* The 3-char prefix is used in reassembly hash table key, so we need */
+                /* to store the MSN separately as prefix and seq character. */
+                i = 0;
+                let mut output_msn: [char; 3] = [' '; 3];
+                while i < 3 {
+                    output_msn[i] = no[i];
+                    i += 1;
+                }
+
+                output_message.msn = Some(output_msn);
+
+                output_message.msn_seq = Some(no[3]);
+
+                i = 0;
+                let mut output_flight_id = [' '; 6];
+                while i < 6 && k < self.blk.len - 1 {
+                    output_flight_id[i] = self.blk.txt[k] as char;
+                    i += 1;
+                    k += 1;
+                }
+
+                output_message.flight_id = Some(output_flight_id);
 
                 //outflg = true;
             }
 
-            let txt_len = self.blk.len as usize - k - 1;
+            let mut txt_len = self.blk.len - k - 1;
 
-            // libacars step. Skipping for now
-            // TODO: Don't skip
-            // #ifdef HAVE_LIBACARS
+            // Extract sublabel and MFI if present
+            let offset = self.acars_extract_sublabel_and_mfi(&mut output_message, k);
 
-            //         // Extract sublabel and MFI if present
-            //         int offset = la_acars_extract_sublabel_and_mfi(msg.label, msg_dir,
-            //                 blk->txt + k, txt_len, msg.sublabel, msg.mfi);
-            //         if(offset > 0) {
-            //             k += offset;
-            //             txt_len -= offset;
-            //         }
+            k += offset;
+            txt_len -= offset;
 
             //         la_reasm_table *acars_rtable = NULL;
             //         if(msg.bid != 0 && reasm_ctx != NULL) { // not a squitter && reassembly engine is enabled
@@ -1051,12 +1193,12 @@ impl ACARSDecoder {
             //                         acars_reasm_funcs, LA_ACARS_REASM_TABLE_CLEANUP_INTERVAL);
             //             }
 
-            //             // The sequence number at which block id wraps at.
-            //             // - downlinks: none (MSN always goes from 'A' up to 'P')
-            //             // - uplinks:
-            //             //   - for VHF Category A (mode=2): wraps after block id 'Z'
-            //             //   - for VHF Category B (mode!=2): wraps after block id 'W'
-            //             //     (blocks 'X'-'Z' are reserved for empty ACKs)
+            // The sequence number at which block id wraps at.
+            // - downlinks: none (MSN always goes from 'A' up to 'P')
+            // - uplinks:
+            //   - for VHF Category A (mode=2): wraps after block id 'Z'
+            //   - for VHF Category B (mode!=2): wraps after block id 'W'
+            //     (blocks 'X'-'Z' are reserved for empty ACKs)
 
             //             int seq_num_wrap = SEQ_WRAP_NONE;
             //             if(!down)
@@ -1085,21 +1227,24 @@ impl ACARSDecoder {
             //         } else {
             // #endif // HAVE_LIBACARS
             //             msg.txt = calloc(txt_len + 1, sizeof(char));
-            k += 1;
+            //k += 1;
 
+            i = 0;
             if txt_len > 0 {
-                while k < txt_len {
-                    output_message.txt.push(self.blk.txt[k] as char);
-                    k += 1;
+                let mut output_text: Vec<char> = Vec::new();
+                while i < txt_len {
+                    output_text.push(self.blk.txt[k + i] as char);
                     i += 1;
                 }
+
+                output_message.txt = Some(output_text);
             }
         // #ifdef HAVE_LIBACARS
         //        }
         // #endif
         } else {
             // empty message text
-            output_message.txt.push('\0');
+            output_message.txt = Some(vec!['\0']);
         }
 
         // #ifdef HAVE_LIBACARS
@@ -1123,5 +1268,66 @@ impl ACARSDecoder {
         if let Some(ref mut output_channel) = self.output_channel {
             output_channel.send(output_message).unwrap();
         }
+    }
+
+    fn acars_extract_sublabel_and_mfi(
+        &self,
+        output_message: &mut AssembledACARSMessage,
+        txt_start_position: usize,
+    ) -> usize {
+        if self.blk.len < 2 {
+            return 0;
+        }
+
+        let mut consumed: usize = 0;
+        let mut remaining: usize = self.blk.len;
+        let mut internal_start_position = txt_start_position;
+
+        if output_message.label[0] == 'H' && output_message.label[1] == '1' {
+            if output_message.downlink_status == DownlinkStatus::GroundToAir
+                && remaining >= 5
+                && self.blk.txt[internal_start_position] as char == '-'
+                && self.blk.txt[internal_start_position + 1] as char == ' '
+                && self.blk.txt[internal_start_position + 2] as char == '#'
+            {
+                output_message.sublabel = Some([
+                    self.blk.txt[internal_start_position + 3] as char,
+                    self.blk.txt[internal_start_position + 4] as char,
+                ]);
+
+                internal_start_position += 5;
+                consumed += 5;
+                remaining -= 5;
+            } else if output_message.downlink_status == DownlinkStatus::AirToGround
+                && remaining >= 4
+                && self.blk.txt[internal_start_position] as char == '#'
+                && self.blk.txt[internal_start_position + 3] as char == 'B'
+            {
+                output_message.sublabel = Some([
+                    self.blk.txt[internal_start_position + 1] as char,
+                    self.blk.txt[internal_start_position + 2] as char,
+                ]);
+
+                internal_start_position += 4;
+                consumed += 4;
+                remaining -= 4;
+            }
+
+            // find the MFI
+
+            if output_message.sublabel.is_some()
+                && remaining >= 4
+                && self.blk.txt[internal_start_position] as char == '/'
+                && self.blk.txt[internal_start_position + 3] as char == ' '
+            {
+                output_message.mfi = Some([
+                    self.blk.txt[internal_start_position + 1] as char,
+                    self.blk.txt[internal_start_position + 2] as char,
+                ]);
+
+                consumed += 4;
+            }
+        }
+        consumed
     }
 }
