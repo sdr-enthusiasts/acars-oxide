@@ -36,11 +36,11 @@ fn main() {
 
     reader
         .read_async(4, sample_size, |bytes| {
-            while num_samples > 0 {
+            if num_samples > 0 {
                 num_samples -= 1;
+            } else {
+                ctl.cancel_async_read();
             }
         })
         .unwrap();
-
-    ctl.cancel_async_read();
 }
