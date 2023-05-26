@@ -15,8 +15,10 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 use rtlsdr_mt::{Controller, Reader};
+use std::fs::File;
+use std::io::prelude::*;
 
-fn main() {
+fn main() -> std::io::Result<()> {
     // TODO: Make these command line switches
     let sample_rate = 2000000;
     let center_freq = 131000000;
@@ -26,7 +28,7 @@ fn main() {
     let gain = 421;
     let ppm = 0;
 
-    let mut num_samples = 5;
+    let mut num_samples = 100;
 
     let (mut ctl, mut reader) = rtlsdr_mt::open(device_index).unwrap();
     ctl.disable_agc().unwrap();
@@ -34,13 +36,18 @@ fn main() {
     ctl.set_center_freq(center_freq).unwrap();
     ctl.set_ppm(ppm).unwrap();
 
+    let mut file = File::create("acars.bin")?;
     reader
         .read_async(4, sample_size, |bytes| {
             if num_samples > 0 {
                 num_samples -= 1;
+
+                file.write_all(bytes).unwrap();
             } else {
                 ctl.cancel_async_read();
             }
         })
         .unwrap();
+
+    Ok(())
 }
