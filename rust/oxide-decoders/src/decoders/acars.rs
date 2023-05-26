@@ -320,14 +320,14 @@ impl Display for AckStatus {
 #[allow(dead_code)]
 pub struct AssembledACARSMessage {
     mode: char,
-    tail_addr: [char; 8],
+    tail_addr: [char; 7],
     ack: AckStatus,
-    label: [char; 3],
+    label: [char; 2],
     bid: char,
-    no: [char; 5],
-    flight_id: [char; 7],
-    sublabel: Option<[char; 3]>,
-    mfi: Option<[char; 3]>,
+    no: [char; 4],
+    flight_id: [char; 6],
+    sublabel: Option<[char; 2]>,
+    mfi: Option<[char; 2]>,
     bs: char,
     be: char,
     txt: Vec<char>,
@@ -335,7 +335,7 @@ pub struct AssembledACARSMessage {
     lvl: f32,
     frequency: f32,
     downlink_status: DownlinkStatus,
-    msn: [char; 4],
+    msn: [char; 3],
     msn_seq: char,
     reassembly_status: ReassemblyStatus,
 }
@@ -373,13 +373,13 @@ impl AssembledACARSMessage {
         Self {
             mode: ' ',
             frequency: 0.0,
-            tail_addr: [' '; 8],
+            tail_addr: [' '; 7],
             downlink_status: DownlinkStatus::AirToGround,
             ack: AckStatus::Nack,
-            label: [' '; 3],
+            label: [' '; 2],
             bid: ' ',
-            no: [' '; 5],
-            flight_id: [' '; 7],
+            no: [' '; 4],
+            flight_id: [' '; 6],
             sublabel: None,
             mfi: None,
             bs: ' ',
@@ -387,7 +387,7 @@ impl AssembledACARSMessage {
             txt: Vec::new(),
             err: 0,
             lvl: 0.0,
-            msn: [' '; 4],
+            msn: [' '; 3],
             msn_seq: ' ',
             reassembly_status: ReassemblyStatus::Skipped,
         }
@@ -973,8 +973,6 @@ impl ACARSDecoder {
             k += 1;
         }
 
-        output_message.tail_addr[j] = '\0';
-
         /* ACK/NAK */
         if self.blk.txt[k] != 0x15 {
             output_message.ack = AckStatus::Ack(self.blk.txt[k] as char);
@@ -989,7 +987,6 @@ impl ACARSDecoder {
             output_message.label[1] = 'd';
         }
         k += 1;
-        output_message.label[2] = '\0';
 
         output_message.bid = self.blk.txt[k] as char;
 
@@ -1017,7 +1014,6 @@ impl ACARSDecoder {
                     i += 1;
                     k += 1;
                 }
-                output_message.no[i] = '\0';
 
                 /* The 3-char prefix is used in reassembly hash table key, so we need */
                 /* to store the MSN separately as prefix and seq character. */
@@ -1026,7 +1022,7 @@ impl ACARSDecoder {
                     output_message.msn[i] = output_message.no[i];
                     i += 1;
                 }
-                output_message.msn[3] = '\0';
+
                 output_message.msn_seq = output_message.no[3];
 
                 i = 0;
@@ -1035,8 +1031,6 @@ impl ACARSDecoder {
                     i += 1;
                     k += 1;
                 }
-
-                output_message.flight_id[i] = '\0';
 
                 //outflg = true;
             }
@@ -1154,7 +1148,6 @@ impl ACARSDecoder {
                 output_message.sublabel = Some([
                     self.blk.txt[internal_start_position + 3] as char,
                     self.blk.txt[internal_start_position + 4] as char,
-                    '\0',
                 ]);
 
                 internal_start_position += 5;
@@ -1168,7 +1161,6 @@ impl ACARSDecoder {
                 output_message.sublabel = Some([
                     self.blk.txt[internal_start_position + 1] as char,
                     self.blk.txt[internal_start_position + 2] as char,
-                    '\0',
                 ]);
 
                 internal_start_position += 4;
@@ -1186,7 +1178,6 @@ impl ACARSDecoder {
                 output_message.mfi = Some([
                     self.blk.txt[internal_start_position + 1] as char,
                     self.blk.txt[internal_start_position + 2] as char,
-                    '\0',
                 ]);
 
                 consumed += 4;
