@@ -1078,13 +1078,23 @@ impl ACARSDecoder {
         let mut tail_addr: [char; 7] = [' '; 7];
         for _ in 0..7_usize {
             if self.blk.txt[k] != b'.' {
+                // ensure self.blk.txt[k] is A-Z or 0-9
+                if (self.blk.txt[k] < b'0' || self.blk.txt[k] > b'9')
+                    && (self.blk.txt[k] < b'A' || self.blk.txt[k] > b'Z')
+                {
+                    continue;
+                }
+
                 tail_addr[j] = self.blk.txt[k] as char;
                 j += 1;
             }
             k += 1;
         }
 
-        output_message.tail_addr = Some(tail_addr);
+        // Ensure we actually saved something as a tail address
+        if tail_addr[0] != ' ' {
+            output_message.tail_addr = Some(tail_addr);
+        }
 
         /* ACK/NAK */
         if self.blk.txt[k] != 0x15 {
