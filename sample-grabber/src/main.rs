@@ -28,7 +28,7 @@ fn main() {
 
     let mut num_samples = 100;
 
-    let (mut ctl, reader) = rtlsdr_mt::open(device_index).unwrap();
+    let (mut ctl, mut reader) = rtlsdr_mt::open(device_index).unwrap();
     ctl.disable_agc().unwrap();
     ctl.set_tuner_gain(gain).unwrap();
     ctl.set_center_freq(center_freq).unwrap();
@@ -40,5 +40,5 @@ fn main() {
         }
     });
 
-    ctl.cancel_async_read.unwrap();
+    ctl.cancel_async_read();
 }

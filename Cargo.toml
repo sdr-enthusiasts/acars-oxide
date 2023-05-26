@@ -9,6 +9,8 @@ members = [
     "rust/oxide-scanner",
 ]
 
+exclude = ["sample-grabber"]
+
 [workspace.package]
 edition = "2021"
 version = "0.1.1"
