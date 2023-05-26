@@ -330,7 +330,7 @@ pub struct AssembledACARSMessage {
     mfi: Option<[char; 2]>,
     bs: char,
     be: char,
-    txt: Vec<char>,
+    txt: Option<Vec<char>>,
     err: u8,
     lvl: f32,
     frequency: f32,
@@ -346,7 +346,7 @@ impl Display for AssembledACARSMessage {
 
         write!(
             f,
-            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {:?}, mfi: {:?}, txt: {}, err: {}, lvl: {}, msn: {}, msn seq: {}, reassembly status: {}",
+            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {}, sublabel: {:?}, mfi: {:?}, txt: {:?}, err: {}, lvl: {}, msn: {}, msn seq: {}, reassembly status: {}",
             self.frequency,
             self.mode,
             self.tail_addr.iter().collect::<String>().trim(),
@@ -358,7 +358,7 @@ impl Display for AssembledACARSMessage {
             self.flight_id.iter().collect::<String>().trim(),
             self.sublabel,
             self.mfi,
-            self.txt.iter().collect::<String>().trim(),
+            self.txt,
             self.err,
             self.lvl,
             self.msn.iter().collect::<String>().trim(),
@@ -384,7 +384,7 @@ impl AssembledACARSMessage {
             mfi: None,
             bs: ' ',
             be: ' ',
-            txt: Vec::new(),
+            txt: None,
             err: 0,
             lvl: 0.0,
             msn: [' '; 3],
@@ -1089,17 +1089,20 @@ impl ACARSDecoder {
 
             i = 0;
             if txt_len > 0 {
+                let mut output_text: Vec<char> = Vec::new();
                 while i < txt_len {
-                    output_message.txt.push(self.blk.txt[k + i] as char);
+                    output_text.push(self.blk.txt[k + i] as char);
                     i += 1;
                 }
+
+                output_message.txt = Some(output_text);
             }
         // #ifdef HAVE_LIBACARS
         //        }
         // #endif
         } else {
             // empty message text
-            output_message.txt.push('\0');
+            output_message.txt = Some(vec!['\0']);
         }
 
         // #ifdef HAVE_LIBACARS
