@@ -106,6 +106,75 @@ impl RtlSdr {
         }
     }
 
+    fn init_channels(
+        &mut self,
+        output_channel: UnboundedSender<AssembledACARSMessage>,
+        rtl_in_rate: i32,
+    ) -> Result<i32, RTLSDRError> {
+        let mut channels: Vec<i32> = Vec::new();
+
+        for freq in self.frequencies.iter() {
+            let channel = ((((1000000.0 * freq) as i32) + self.get_intrate() / 2)
+                / self.get_intrate())
+                * self.get_intrate();
+            channels.push(channel);
+        }
+
+        // Set the center frequency. Initial implementation took the highest and lowest values
+        // For the inputted frequency list and averaged them. In my mind, this would be the
+        // best way to set the center frequency. However, the original acarsdec code set the center
+        // using a different method. I'm not sure why, but I'm going to keep it the same for now.
+
+        let mut center_freq_actual: i32 = channels[0];
+
+        if channels.len() > 1 {
+            let center_freq_as_float =
+                ((self.frequencies[self.frequencies.len() - 1] + self.frequencies[0]) / 2.0)
+                    .round();
+            let center_freq = (center_freq_as_float * 1000000.0) as i32;
+            info!(
+                "[{: <13}] Setting center frequency to {}",
+                self.serial, center_freq
+            );
+            center_freq_actual = center_freq;
+        } else {
+            info!(
+                "[{: <13}] Setting center frequency to {}",
+                self.serial, channels[0]
+            );
+        }
+
+        let mut channel_windows = Vec::new();
+        for channel in channels.iter() {
+            // AMFreq = (ch->Fr - (float)Fc) / (float)(rtlInRate) * 2.0 * M_PI;
+            let am_freq = ((channel - center_freq_actual) as f32) * 2.0 * std::f32::consts::PI
+                / (rtl_in_rate as f32);
+            let mut window: Vec<Complex<f32>> = vec![];
+            for i in 0..self.rtl_mult {
+                // ch->wf[ind]=cexpf(AMFreq*ind*-I)/rtlMult/127.5;
+                let window_value =
+                    (am_freq * i as f32 * -Complex::i()).exp() / self.rtl_mult as f32 / 127.5;
+                window.push(window_value);
+            }
+            channel_windows.push(window);
+        }
+
+        for i in 0..self.frequencies.len() {
+            // create an array out of the channel_window[i] vector
+            let mut window_array: [Complex<f32>; 192] = [Complex::new(0.0, 0.0); 192];
+            for (ind, window_value) in channel_windows[i].iter().enumerate() {
+                window_array[ind] = *window_value;
+            }
+            let mut out_channel: ACARSDecoder =
+                ACARSDecoder::new(i as i32, channels[i], window_array);
+            out_channel.set_output_channel(output_channel.clone());
+
+            self.channel[i] = Box::new(out_channel);
+        }
+
+        Ok(center_freq_actual)
+    }
+
     pub fn open_sdr(
         &mut self,
         output_channel: UnboundedSender<AssembledACARSMessage>,
@@ -124,6 +193,7 @@ impl RtlSdr {
             }
             Some(idx) => {
                 self.index = Some(idx);
+                let rtl_in_rate = self.get_intrate() * self.rtl_mult;
                 info!("[{: <13}] Using found device at index {}", self.serial, idx);
 
                 let (mut ctl, reader) = rtlsdr_mt::open(self.index.unwrap()).unwrap();
@@ -200,72 +270,13 @@ impl RtlSdr {
                     });
                 }
 
-                let rtl_in_rate = self.get_intrate() * self.rtl_mult;
-                let mut channels: Vec<i32> = Vec::new();
-
-                for freq in self.frequencies.iter() {
-                    let channel = ((((1000000.0 * freq) as i32) + self.get_intrate() / 2)
-                        / self.get_intrate())
-                        * self.get_intrate();
-                    channels.push(channel);
-                }
-
-                // Set the center frequency. Initial implementation took the highest and lowest values
-                // For the inputted frequency list and averaged them. In my mind, this would be the
-                // best way to set the center frequency. However, the original acarsdec code set the center
-                // using a different method. I'm not sure why, but I'm going to keep it the same for now.
-
-                let center_freq_actual: i32;
-
-                if channels.len() > 1 {
-                    let center_freq_as_float = ((self.frequencies[self.frequencies.len() - 1]
-                        + self.frequencies[0])
-                        / 2.0)
-                        .round();
-                    let center_freq = (center_freq_as_float * 1000000.0) as i32;
-                    info!(
-                        "[{: <13}] Setting center frequency to {}",
-                        self.serial, center_freq
-                    );
-                    center_freq_actual = center_freq;
-                    ctl.set_center_freq(center_freq as u32).unwrap();
-                } else {
-                    info!(
-                        "[{: <13}] Setting center frequency to {}",
-                        self.serial, channels[0]
-                    );
-                    center_freq_actual = channels[0];
-                    ctl.set_center_freq(channels[0] as u32).unwrap();
-                }
-
-                let mut channel_windows = Vec::new();
-                for channel in channels.iter() {
-                    // AMFreq = (ch->Fr - (float)Fc) / (float)(rtlInRate) * 2.0 * M_PI;
-                    let am_freq =
-                        ((channel - center_freq_actual) as f32) * 2.0 * std::f32::consts::PI
-                            / (rtl_in_rate as f32);
-                    let mut window: Vec<Complex<f32>> = vec![];
-                    for i in 0..self.rtl_mult {
-                        // ch->wf[ind]=cexpf(AMFreq*ind*-I)/rtlMult/127.5;
-                        let window_value = (am_freq * i as f32 * -Complex::i()).exp()
-                            / self.rtl_mult as f32
-                            / 127.5;
-                        window.push(window_value);
+                match self.init_channels(output_channel, rtl_in_rate) {
+                    Ok(center_freq) => {
+                        ctl.set_center_freq(center_freq as u32).unwrap();
                     }
-                    channel_windows.push(window);
-                }
-
-                for i in 0..self.frequencies.len() {
-                    // create an array out of the channel_window[i] vector
-                    let mut window_array: [Complex<f32>; 192] = [Complex::new(0.0, 0.0); 192];
-                    for (ind, window_value) in channel_windows[i].iter().enumerate() {
-                        window_array[ind] = *window_value;
+                    Err(e) => {
+                        return Err(e);
                     }
-                    let mut out_channel: ACARSDecoder =
-                        ACARSDecoder::new(i as i32, channels[i], window_array);
-                    out_channel.set_output_channel(output_channel.clone());
-
-                    self.channel[i] = Box::new(out_channel);
                 }
 
                 info!(
