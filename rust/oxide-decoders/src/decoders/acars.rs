@@ -396,7 +396,13 @@ impl AssembledACARSMessage {
 
     fn get_text_display(&self) -> String {
         match &self.txt {
-            Some(txt) => format!("Text: {}", txt.iter().collect::<String>()),
+            Some(txt) => {
+                if txt[0] != '\0' {
+                    format!("Text: {}", txt.iter().collect::<String>())
+                } else {
+                    "".to_string()
+                }
+            }
             None => "".to_string(),
         }
     }
