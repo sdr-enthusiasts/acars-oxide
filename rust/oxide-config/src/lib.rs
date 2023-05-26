@@ -71,7 +71,7 @@ pub struct OxideInput {
         long,
         env = "AO_SDR1GAIN",
         value_parser = parse_sdr_gain,
-        default_value = "60",
+        default_value = "42",
         hide = true,
         requires = "sdr1serial"
     )]
@@ -137,7 +137,7 @@ pub struct OxideInput {
         long,
         env = "AO_SDR2GAIN",
         value_parser = parse_sdr_gain,
-        default_value = "60",
+        default_value = "42",
         hide = true,
         requires = "sdr2serial"
     )]
@@ -203,7 +203,7 @@ pub struct OxideInput {
         long,
         env = "AO_SDR3GAIN",
         value_parser = parse_sdr_gain,
-        default_value = "60",
+        default_value = "42",
         hide = true,
         requires = "sdr3serial"
     )]
@@ -269,7 +269,7 @@ pub struct OxideInput {
         long,
         env = "AO_SDR4GAIN",
         value_parser = parse_sdr_gain,
-        default_value = "60",
+        default_value = "42",
         hide = true,
         requires = "sdr4serial"
     )]
@@ -335,7 +335,7 @@ pub struct OxideInput {
         long,
         env = "AO_SDR5GAIN",
         value_parser = parse_sdr_gain,
-        default_value = "60",
+        default_value = "42",
         hide = true,
         requires = "sdr5serial"
     )]
@@ -401,7 +401,7 @@ pub struct OxideInput {
         long,
         env = "AO_SDR6GAIN",
         value_parser = parse_sdr_gain,
-        default_value = "60",
+        default_value = "42",
         hide = true,
         requires = "sdr6serial"
     )]
@@ -467,7 +467,7 @@ pub struct OxideInput {
         long,
         env = "AO_SDR7GAIN",
         value_parser = parse_sdr_gain,
-        default_value = "60",
+        default_value = "42",
         hide = true,
         requires = "sdr7serial"
     )]
@@ -533,7 +533,7 @@ pub struct OxideInput {
         long,
         env = "AO_SDR8GAIN",
         value_parser = parse_sdr_gain,
-        default_value = "60",
+        default_value = "42",
         hide = true,
         requires = "sdr8serial"
     )]
