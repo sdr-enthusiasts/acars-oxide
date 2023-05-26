@@ -342,8 +342,6 @@ pub struct AssembledACARSMessage {
 
 impl Display for AssembledACARSMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // TODO: Format the optional fields appropriately
-
         write!(
             f,
             "Frequency: {}, Mode: {}, {}Downlink Status: {}, Ack: {}, Label: {}, BID: {}, {}{}{}{}ERR: {}, Signal Level: {}, {}{}Reassembly Status: {}{}{}",
@@ -409,49 +407,98 @@ impl AssembledACARSMessage {
 
     fn get_tail_addr_display(&self) -> String {
         match &self.tail_addr {
-            Some(tail_addr) => format!("Tail: {}, ", tail_addr.iter().collect::<String>()),
+            Some(tail_addr) => {
+                let output = tail_addr.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("Tail: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
             None => "".to_string(),
         }
     }
 
     fn get_no_display(&self) -> String {
         match &self.no {
-            Some(no) => format!("No: {}, ", no.iter().collect::<String>()),
+            Some(no) => {
+                let output = no.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("No: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
             None => "".to_string(),
         }
     }
 
     fn get_flight_id_display(&self) -> String {
         match &self.flight_id {
-            Some(flight_id) => format!("Flight ID: {}, ", flight_id.iter().collect::<String>()),
+            Some(flight_id) => {
+                let output = flight_id.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("Flight ID: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
             None => "".to_string(),
         }
     }
 
     fn get_sub_label_display(&self) -> String {
         match &self.sublabel {
-            Some(sublabel) => format!("Sublabel: {}, ", sublabel.iter().collect::<String>()),
+            Some(sublabel) => {
+                let output = sublabel.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("Sublabel: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
             None => "".to_string(),
         }
     }
 
     fn get_mfi_display(&self) -> String {
         match &self.mfi {
-            Some(mfi) => format!("MFI: {}, ", mfi.iter().collect::<String>()),
+            Some(mfi) => {
+                let output = mfi.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("MFI: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
             None => "".to_string(),
         }
     }
 
     fn get_msn_display(&self) -> String {
         match &self.msn {
-            Some(msn) => format!("MSN: {}, ", msn.iter().collect::<String>()),
+            Some(msn) => {
+                let output = msn.iter().collect::<String>();
+                if !output.trim().is_empty() {
+                    format!("MSN: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
             None => "".to_string(),
         }
     }
 
     fn get_msn_seq_display(&self) -> String {
         match &self.msn_seq {
-            Some(msn_seq) => format!("MSN Seq: {}, ", msn_seq),
+            Some(msn_seq) => {
+                let output = String::from(*msn_seq);
+                if !output.trim().is_empty() {
+                    format!("MSN Seq: {}, ", output.trim())
+                } else {
+                    "".to_string()
+                }
+            }
             None => "".to_string(),
         }
     }
