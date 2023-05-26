@@ -320,7 +320,7 @@ impl Display for AckStatus {
 #[allow(dead_code)]
 pub struct AssembledACARSMessage {
     mode: char,
-    tail_addr: [char; 7],
+    tail_addr: Option<[char; 7]>,
     ack: AckStatus,
     label: [char; 2],
     bid: char,
@@ -346,10 +346,10 @@ impl Display for AssembledACARSMessage {
 
         write!(
             f,
-            "frequency: {}, mode: {}, tail addr: {}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {:?}, sublabel: {:?}, mfi: {:?}, txt: {:?}, err: {}, lvl: {}, msn: {:?}, msn seq: {:?}, reassembly status: {}",
+            "frequency: {}, mode: {}, tail addr: {:?}, downlink status: {}, ack: {}, label: {}, bid: {}, no: {}, flight id: {:?}, sublabel: {:?}, mfi: {:?}, txt: {:?}, err: {}, lvl: {}, msn: {:?}, msn seq: {:?}, reassembly status: {}",
             self.frequency,
             self.mode,
-            self.tail_addr.iter().collect::<String>().trim(),
+            self.tail_addr,
             self.downlink_status,
             self.ack,
             self.label.iter().collect::<String>().trim(),
@@ -373,7 +373,7 @@ impl AssembledACARSMessage {
         Self {
             mode: ' ',
             frequency: 0.0,
-            tail_addr: [' '; 7],
+            tail_addr: None,
             downlink_status: DownlinkStatus::AirToGround,
             ack: AckStatus::Nack,
             label: [' '; 2],
@@ -965,13 +965,16 @@ impl ACARSDecoder {
         output_message.mode = self.blk.txt[k] as char;
         k += 1;
 
+        let mut tail_addr: [char; 7] = [' '; 7];
         for _ in 0..7_usize {
             if self.blk.txt[k] != b'.' {
-                output_message.tail_addr[j] = self.blk.txt[k] as char;
+                tail_addr[j] = self.blk.txt[k] as char;
                 j += 1;
             }
             k += 1;
         }
+
+        output_message.tail_addr = Some(tail_addr);
 
         /* ACK/NAK */
         if self.blk.txt[k] != 0x15 {
