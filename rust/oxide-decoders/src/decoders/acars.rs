@@ -261,7 +261,7 @@ enum ACARSState {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum DownlinkStatus {
+pub enum DownlinkStatus {
     AirToGround,
     GroundToAir,
 }
@@ -301,8 +301,8 @@ impl Display for DownlinkStatus {
 //     }
 // }
 
-#[derive(Debug, Clone)]
-enum AckStatus {
+#[derive(Debug, Clone, PartialEq)]
+pub enum AckStatus {
     Nack,
     Ack(char),
 }
@@ -316,27 +316,27 @@ impl Display for AckStatus {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub struct AssembledACARSMessage {
-    mode: char,
-    tail_addr: Option<[char; 7]>,
-    ack: AckStatus,
-    label: [char; 2],
-    bid: char,
-    no: Option<[char; 4]>,
-    flight_id: Option<[char; 6]>,
-    sublabel: Option<[char; 2]>,
-    mfi: Option<[char; 2]>,
-    bs: char,
-    be: char,
-    txt: Option<Vec<char>>,
-    err: u8,
-    lvl: f32,
-    frequency: f32,
-    downlink_status: DownlinkStatus,
-    msn: Option<[char; 3]>,
-    msn_seq: Option<char>,
+    pub mode: char,
+    pub tail_addr: Option<[char; 7]>,
+    pub ack: AckStatus,
+    pub label: [char; 2],
+    pub bid: char,
+    pub no: Option<[char; 4]>,
+    pub flight_id: Option<[char; 6]>,
+    pub sublabel: Option<[char; 2]>,
+    pub mfi: Option<[char; 2]>,
+    pub bs: char,
+    pub be: char,
+    pub txt: Option<Vec<char>>,
+    pub err: u8,
+    pub lvl: f32,
+    pub frequency: f32,
+    pub downlink_status: DownlinkStatus,
+    pub msn: Option<[char; 3]>,
+    pub msn_seq: Option<char>,
     // reassembly_status: ReassemblyStatus,
 }
 
