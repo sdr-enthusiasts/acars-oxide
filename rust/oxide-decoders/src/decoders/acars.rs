@@ -1068,6 +1068,11 @@ impl ACARSDecoder {
         self.generate_output_message();
     }
 
+    fn round(&self, x: f32, decimals: u32) -> f32 {
+        let y = 10i32.pow(decimals) as f32;
+        (x * y).round() / y
+    }
+
     fn generate_output_message(&mut self) {
         trace!(
             "[{: <13}] Generating output message",
@@ -1075,7 +1080,7 @@ impl ACARSDecoder {
         );
 
         let mut output_message = AssembledACARSMessage::new();
-        output_message.lvl = self.blk.lvl;
+        output_message.lvl = self.round(self.blk.lvl, 1);
         output_message.err = self.blk.err as u8;
         output_message.frequency = self.freq;
 
