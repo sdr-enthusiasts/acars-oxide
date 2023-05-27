@@ -576,8 +576,8 @@ mod tests {
         }
 
         assert!(
-            num_messages == 26,
-            "Number of messages is not 6. Found {}",
+            num_messages == 29,
+            "Number of messages is not 26. Found {}",
             num_messages
         );
 
