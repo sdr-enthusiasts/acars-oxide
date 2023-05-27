@@ -14,12 +14,12 @@ rust-version.workspace = true
 [dependencies]
 log = "0.4.17"
 libc = "0.2.144"
-rtlsdr_mt = "2.0.0"
+rtlsdr_mt = "2.2.0"
 rtlsdr_sys = "1.1.2"
-ctrlc = "3.2.5"
+ctrlc = "3.3.1"
 num = "0.4.0"
 custom_error = "1.9.2"
 oxide-decoders = { path = "../oxide-decoders" }
-tokio = { version = "1.28.1", features = ["full", "tracing"] }
+tokio = { version = "1.28.2", features = ["full", "tracing"] }
 array-init = "2.1.0"
 # num-complex = "0.4.3"

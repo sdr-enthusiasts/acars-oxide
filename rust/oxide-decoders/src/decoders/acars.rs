@@ -253,11 +253,17 @@ custom_error! {pub ACARSDecodingError
 /// Enum to represent the state of the ACARS decoding
 #[derive(Debug, Clone)]
 enum ACARSState {
+    /// No message is being decoded. Waiting for the start of a new message
     Wsyn,
+    /// Bit synchronization is being performed
     Syn2,
+    /// Start of the header marker
     Soh1,
+    /// End of the header marker. The text is being decoded
     Txt,
+    /// Start of frame CRC. ETX/ETB are being ignored
     Crc1,
+    /// End of frame CRC. The CRC is being calculated
     Crc2,
     End,
 }
@@ -296,8 +302,9 @@ impl Display for AckStatus {
 
 /// Struct designed to hold the information of a single ACARS frame
 #[derive(Debug, Clone, PartialEq)]
-#[allow(dead_code)]
+
 pub struct AssembledACARSMessage {
+    // TODO: Need to save time of message
     /// Type of transmission. (AGCS-1, AGCS-D etc).
     pub mode: char,
     /// Aircraft Registration number. Filled with a special sequence if a squitter burst.
@@ -355,8 +362,6 @@ impl Display for AssembledACARSMessage {
             self.signal_level,
             self.get_msn_display(),
             self.get_msn_seq_display(),
-            // self.reassembly_status,
-            // if self.txt.is_some() { ", " } else { "" },
             self.get_text_display(),
         )
     }
@@ -577,7 +582,8 @@ impl Mskblks {
 #[derive(Clone)]
 pub struct ACARSDecoder {
     channel_number: i32,
-    freq: f32,
+    // Frequency of the channel in MHz
+    frequency: f32,
     wf: [Complex<f32>; 192],
     dm_buffer: [f32; RTLOUTBUFSZ],
     msk_phi: f32,
@@ -616,6 +622,7 @@ impl Decoder for ACARSDecoder {
 
 impl ACARSDecoder {
     pub fn new(channel_number: i32, freq: i32, wf: [Complex<f32>; 192]) -> Self {
+        // TODO: Should this be moved to a static?
         let mut h: [f32; FLENO] = [0.0; FLENO];
         for (i, h_item) in h.iter_mut().enumerate().take(FLENO) {
             *h_item = f32::cos(
@@ -629,7 +636,7 @@ impl ACARSDecoder {
 
         Self {
             channel_number,
-            freq: freq as f32 / 1000000.0,
+            frequency: freq as f32 / 1000000.0,
             wf,
             dm_buffer: [0.0; RTLOUTBUFSZ],
             msk_phi: 0.0,
@@ -773,12 +780,8 @@ impl ACARSDecoder {
                 self.reset_acars();
             }
             ACARSState::Soh1 => {
-                trace!("[{: <13}] SOH1", format!("{}:{}", "ACARS", self.freq));
-                // let test = AssembledACARSMessage::new();
-                // if let Some(ref mut output_channel) = self.output_channel {
-                //     trace!("sending");
-                //     output_channel.send(test).unwrap();
-                // }
+                trace!("[{: <13}] SOH1", format!("{}:{}", "ACARS", self.frequency));
+
                 if self.outbits == SOH {
                     if self.blk.init {
                         self.blk.reset();
@@ -804,18 +807,21 @@ impl ACARSDecoder {
                 self.reset_acars();
             }
             ACARSState::Txt => {
-                trace!("[{: <13}] TXT", format!("{}:{}", "ACARS", self.freq));
+                trace!("[{: <13}] TXT", format!("{}:{}", "ACARS", self.frequency));
                 self.blk.set_text_by_index(self.blk.len, self.outbits);
                 self.blk.len += 1;
 
                 if (NUMBITS[self.outbits as usize] & 1) == 0 {
-                    trace!("[{: <13}] TXT ERROR", format!("{}:{}", "ACARS", self.freq));
+                    trace!(
+                        "[{: <13}] TXT ERROR",
+                        format!("{}:{}", "ACARS", self.frequency)
+                    );
                     self.blk.err += 1;
 
                     if self.blk.err > MAXPERR + 1 {
                         trace!(
                             "[{: <13}] TXT TOO MANY ERRORS",
-                            format!("{}:{}", "ACARS", self.freq)
+                            format!("{}:{}", "ACARS", self.frequency)
                         );
                         self.reset_acars();
                         return;
@@ -840,19 +846,19 @@ impl ACARSDecoder {
                 self.nbits = 8;
             }
             ACARSState::Crc1 => {
-                trace!("[{: <13}] CRC1", format!("{}:{}", "ACARS", self.freq));
+                trace!("[{: <13}] CRC1", format!("{}:{}", "ACARS", self.frequency));
                 self.blk.crc[0] = self.outbits;
                 self.acars_state = ACARSState::Crc2;
                 self.nbits = 8;
             }
 
             ACARSState::Crc2 => {
-                trace!("[{: <13}] CRC2", format!("{}:{}", "ACARS", self.freq));
+                trace!("[{: <13}] CRC2", format!("{}:{}", "ACARS", self.frequency));
                 self.blk.crc[1] = self.outbits;
                 self.put_msg_label();
             }
             ACARSState::End => {
-                trace!("[{: <13}] END", format!("{}:{}", "ACARS", self.freq));
+                trace!("[{: <13}] END", format!("{}:{}", "ACARS", self.frequency));
                 self.reset_acars();
                 self.nbits = 8;
             }
@@ -864,12 +870,6 @@ impl ACARSDecoder {
 
         self.blk.prev = None;
         self.parity_and_crc_check();
-        // THis is for message queueing, I think.
-        // if (blkq_s)
-        //     blkq_s->prev = Some(self.blk);
-        // blkq_s = ch->blk;
-        // if (blkq_e == NULL)
-        //     blkq_e = blkq_s;
 
         self.blk.reset();
         self.acars_state = ACARSState::End;
@@ -949,7 +949,7 @@ impl ACARSDecoder {
             // too short
             error!(
                 "[{: <13}] Message too short",
-                format!("{}:{}", "ACARS", self.freq)
+                format!("{}:{}", "ACARS", self.frequency)
             );
             return;
         }
@@ -971,14 +971,14 @@ impl ACARSDecoder {
         if pn > MAXPERR {
             error!(
                 "[{: <13}] Too many parity errors",
-                format!("{}:{}", "ACARS", self.freq)
+                format!("{}:{}", "ACARS", self.frequency)
             );
             return;
         }
         if pn > 0 {
             warn!(
                 "[{: <13}] Initial parity error{}: {}",
-                format!("{}:{}", "ACARS", self.freq),
+                format!("{}:{}", "ACARS", self.frequency),
                 if pn > 1 { "s" } else { "" },
                 pn
             );
@@ -994,9 +994,15 @@ impl ACARSDecoder {
         crc = self.update_crc(crc, self.blk.crc[0] as u32);
         crc = self.update_crc(crc, self.blk.crc[1] as u32);
         if crc != 0 {
-            warn!("[{: <13}] CRC error", format!("{}:{}", "ACARS", self.freq),);
+            warn!(
+                "[{: <13}] CRC error",
+                format!("{}:{}", "ACARS", self.frequency),
+            );
         } else {
-            trace!("[{: <13}] CRC OK", format!("{}:{}", "ACARS", self.freq));
+            trace!(
+                "[{: <13}] CRC OK",
+                format!("{}:{}", "ACARS", self.frequency)
+            );
         }
 
         /* try to fix error */
@@ -1006,14 +1012,14 @@ impl ACARSDecoder {
                 Err(_) => {
                     error!(
                         "[{: <13}] Not able to fix parity errors",
-                        format!("{}:{}", "ACARS", self.freq),
+                        format!("{}:{}", "ACARS", self.frequency),
                     );
                     return;
                 }
             }
             info!(
                 "[{: <13}] {:#} total parity error{} fixed",
-                format!("{}:{}", "ACARS", self.freq),
+                format!("{}:{}", "ACARS", self.frequency),
                 pn,
                 if pn > 1 { "s" } else { "" }
             );
@@ -1023,14 +1029,14 @@ impl ACARSDecoder {
                 Err(_) => {
                     error!(
                         "[{: <13}] Not able to fix CRC errors",
-                        format!("{}:{}", "ACARS", self.freq),
+                        format!("{}:{}", "ACARS", self.frequency),
                     );
                     return;
                 }
             }
             info!(
                 "[{: <13}] CRC errors fixed",
-                format!("{}:{}", "ACARS", self.freq),
+                format!("{}:{}", "ACARS", self.frequency),
             );
         }
 
@@ -1046,7 +1052,7 @@ impl ACARSDecoder {
         if pn > 0 {
             error!(
                 "[{: <13}] Final parity error{}: {}",
-                format!("{}:{}", "ACARS", self.freq),
+                format!("{}:{}", "ACARS", self.frequency),
                 if pn > 1 { "s" } else { "" },
                 pn
             );
@@ -1056,7 +1062,7 @@ impl ACARSDecoder {
 
         trace!(
             "[{: <13}] Parity and CRC check complete",
-            format!("{}:{}", "ACARS", self.freq)
+            format!("{}:{}", "ACARS", self.frequency)
         );
 
         self.generate_output_message();
@@ -1065,18 +1071,18 @@ impl ACARSDecoder {
     fn generate_output_message(&mut self) {
         trace!(
             "[{: <13}] Generating output message",
-            format!("{}:{}", "ACARS", self.freq)
+            format!("{}:{}", "ACARS", self.frequency)
         );
 
         let mut output_message = AssembledACARSMessage::new();
         output_message.signal_level = round(self.blk.lvl, 1);
         output_message.parity_errors = self.blk.err as u8;
-        output_message.frequency = self.freq;
+        output_message.frequency = self.frequency;
 
         let mut k: usize = 0;
         let mut j: usize = 0;
         let mut i: usize = 0;
-        //let mut outflg: bool = false;
+
         output_message.mode = self.blk.txt[k] as char;
         k += 1;
 
@@ -1145,8 +1151,6 @@ impl ACARSDecoder {
 
                 output_message.message_number = Some(no);
 
-                /* The 3-char prefix is used in reassembly hash table key, so we need */
-                /* to store the MSN separately as prefix and seq character. */
                 i = 0;
                 let mut output_msn: [char; 3] = [' '; 3];
                 while i < 3 {
@@ -1167,8 +1171,6 @@ impl ACARSDecoder {
                 }
 
                 output_message.flight_id = Some(output_flight_id);
-
-                //outflg = true;
             }
 
             let mut txt_len = self.blk.len - k - 1;
@@ -1178,50 +1180,6 @@ impl ACARSDecoder {
 
             k += offset;
             txt_len -= offset;
-
-            //         la_reasm_table *acars_rtable = NULL;
-            //         if(msg.bid != 0 && reasm_ctx != NULL) { // not a squitter && reassembly engine is enabled
-            //             acars_rtable = la_reasm_table_lookup(reasm_ctx, &la_DEF_acars_message);
-            //             if(acars_rtable == NULL) {
-            //                 acars_rtable = la_reasm_table_new(reasm_ctx, &la_DEF_acars_message,
-            //                         acars_reasm_funcs, LA_ACARS_REASM_TABLE_CLEANUP_INTERVAL);
-            //             }
-
-            // The sequence number at which block id wraps at.
-            // - downlinks: none (MSN always goes from 'A' up to 'P')
-            // - uplinks:
-            //   - for VHF Category A (mode=2): wraps after block id 'Z'
-            //   - for VHF Category B (mode!=2): wraps after block id 'W'
-            //     (blocks 'X'-'Z' are reserved for empty ACKs)
-
-            //             int seq_num_wrap = SEQ_WRAP_NONE;
-            //             if(!down)
-            //                 seq_num_wrap = msg.mode == '2' ? 'Z' + 1 - 'A' : 'X' - 'A';
-
-            //             msg.reasm_status = la_reasm_fragment_add(acars_rtable,
-            //                     &(la_reasm_fragment_info){
-            //                         .msg_info = &msg,
-            //                         .msg_data = (uint8_t *)(blk->txt + k),
-            //                         .msg_data_len = txt_len,
-            //                         .total_pdu_len = 0,        // not used
-            //                         .seq_num = down ? msg.msn_seq - 'A' : msg.bid - 'A',
-            //                         .seq_num_first = down ? 0 : SEQ_FIRST_NONE,
-            //                         .seq_num_wrap = seq_num_wrap,
-            //                         .is_final_fragment = msg.be != 0x17,    // ETB means "more fragments"
-            //                         .rx_time = blk->tv,
-            //                         .reasm_timeout = down ? acars_reasm_timeout_downlink : acars_reasm_timeout_uplink
-            //                     });
-            //         }
-            //         uint8_t *reassembled_msg = NULL;
-            //         if(msg.reasm_status == LA_REASM_COMPLETE &&
-            //                 la_reasm_payload_get(acars_rtable, &msg, &reassembled_msg) > 0) {
-            //             // reassembled_msg is a newly allocated byte buffer, which is guaranteed to
-            //             // be NULL-terminated, so we can cast it to char * directly.
-            //             msg.txt = (char *)reassembled_msg;
-            //         } else {
-            // #endif // HAVE_LIBACARS
-            //             msg.txt = calloc(txt_len + 1, sizeof(char));
-            //k += 1;
 
             i = 0;
             if txt_len > 0 {
@@ -1233,32 +1191,11 @@ impl ACARSDecoder {
 
                 output_message.message_text = Some(output_text);
             }
-        // #ifdef HAVE_LIBACARS
-        //        }
-        // #endif
         } else {
             // empty message text
             output_message.message_text = Some(vec!['\0']);
         }
 
-        // #ifdef HAVE_LIBACARS
-        //     if(msg.txt != NULL && msg.txt[0] != '\0') {
-        //         bool decode_apps = true;
-        //         // Inhibit higher layer application decoding if reassembly is enabled and
-        //         // is now in progress (ie. the message is not yet complete)
-        //         if(reasm_ctx != NULL && (msg.reasm_status == LA_REASM_IN_PROGRESS ||
-        //                 msg.reasm_status == LA_REASM_DUPLICATE)) {
-        //             decode_apps = false;
-        //         }
-        //         if(decode_apps) {
-        //             msg.decoded_tree = la_acars_apps_parse_and_reassemble(msg.addr, msg.label,
-        //                     msg.txt, msg_dir, reasm_ctx, blk->tv);
-        //         }
-        //     }
-        // #endif
-
-        //     if(outflg)
-        //         fl=addFlight(&msg,blk->chn,blk->tv);
         if let Some(ref mut output_channel) = self.output_channel {
             output_channel.send(output_message).unwrap();
         }

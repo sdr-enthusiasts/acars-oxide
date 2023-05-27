@@ -26,6 +26,7 @@ pub mod decoders {
     pub mod acars;
 }
 
+/// Enum to represent the different types of decoders
 #[derive(Debug, Clone)]
 pub enum ValidDecoderType {
     ACARS,
@@ -33,9 +34,15 @@ pub enum ValidDecoderType {
     HFDL,
 }
 
+/// Trait to represent a decoder.
 pub trait Decoder: Send + Sync {
+    /// function to pass through to the decoder implementation data read in from the SDR
     fn decode(&mut self, length: usize);
+    /// function to grab the WF data iterator from the decoder implementation.
+    /// Used during SDR data processing before passing the data to the decoder
     fn get_wf_iter(&self) -> std::slice::Iter<'_, Complex<f32>>;
+    /// function to set the dm buffer in the decoder to a processed value from the SDR
     fn set_dm_buffer_at_index(&mut self, index: usize, value: f32);
+    /// function to set the output channel for the decoder to pass processed messages to
     fn set_output_channel(&mut self, channel: UnboundedSender<AssembledACARSMessage>);
 }
