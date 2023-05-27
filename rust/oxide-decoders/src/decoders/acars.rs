@@ -18,6 +18,7 @@ use crate::Decoder;
 use custom_error::custom_error;
 // use num_complex::Complex;
 use num::Complex;
+use oxide_helpers::round;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::ops::Add;
@@ -249,6 +250,7 @@ custom_error! {pub ACARSDecodingError
     FixPR = "Not able to fix PR Error",
 }
 
+/// Enum to represent the state of the ACARS decoding
 #[derive(Debug, Clone)]
 enum ACARSState {
     Wsyn,
@@ -260,6 +262,7 @@ enum ACARSState {
     End,
 }
 
+/// Enum to represent the downlink status of an ACARS frame
 #[derive(Debug, Clone, PartialEq)]
 pub enum DownlinkStatus {
     AirToGround,
@@ -275,32 +278,7 @@ impl Display for DownlinkStatus {
     }
 }
 
-// #[allow(dead_code)]
-// #[derive(Debug, Clone)]
-// enum ReassemblyStatus {
-//     Unknown,
-//     Complete,
-//     InProgress,
-//     Skipped,
-//     Duplicate,
-//     FragOutOfSequence,
-//     ArgsInvalid,
-// }
-
-// impl Display for ReassemblyStatus {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             ReassemblyStatus::Unknown => write!(f, "Unknown"),
-//             ReassemblyStatus::Complete => write!(f, "Complete"),
-//             ReassemblyStatus::InProgress => write!(f, "In Progress"),
-//             ReassemblyStatus::Skipped => write!(f, "Skipped"),
-//             ReassemblyStatus::Duplicate => write!(f, "Duplicate"),
-//             ReassemblyStatus::FragOutOfSequence => write!(f, "Fragment out of sequence"),
-//             ReassemblyStatus::ArgsInvalid => write!(f, "Invalid arguments"),
-//         }
-//     }
-// }
-
+/// Enum to represent the acknowledgement status of an ACARS frame
 #[derive(Debug, Clone, PartialEq)]
 pub enum AckStatus {
     Nack,
@@ -316,27 +294,44 @@ impl Display for AckStatus {
     }
 }
 
+/// Struct designed to hold the information of a single ACARS frame
 #[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub struct AssembledACARSMessage {
+    /// Type of transmission. (AGCS-1, AGCS-D etc).
     pub mode: char,
-    pub tail_addr: Option<[char; 7]>,
-    pub ack: AckStatus,
+    /// Aircraft Registration number. Filled with a special sequence if a squitter burst.
+    pub aircraft_tail: Option<[char; 7]>,
+    /// Acknowledgement status of the message.
+    pub acknowledgement: AckStatus,
+    /// Label identifies type of message being sent. Usually a letter and a number.
     pub label: [char; 2],
-    pub bid: char,
-    pub no: Option<[char; 4]>,
+    /// Single byte which increments on each successful transmission.
+    pub block_id: char,
+    /// Message sequence number. Usually made from the current time (minutes/seconds). Only transmitted in downlink data blocks.
+    pub message_number: Option<[char; 4]>,
+    /// Aircraft carriers international flight number. Only transmitted in downlink data blocks.
     pub flight_id: Option<[char; 6]>,
     pub sublabel: Option<[char; 2]>,
     pub mfi: Option<[char; 2]>,
-    pub bs: char,
-    pub be: char,
-    pub txt: Option<Vec<char>>,
-    pub err: u8,
-    pub lvl: f32,
+    /// An internal tracking number used internally in Oxide. Can be safely ignored
+    pub block_start: char,
+    /// An internal tracking number used internally in Oxide. Can be safely ignored
+    pub block_end: char,
+    /// The text message itself. Just as with AX25 packet, the actual length is variable but limited to a maximum of 220 characters.
+    pub message_text: Option<Vec<char>>,
+    /// The number of parity errors encountered during the decoding of the message.
+    pub parity_errors: u8,
+    /// Signal level of the message.
+    pub signal_level: f32,
+    /// Frequency the message was received on.
     pub frequency: f32,
+    /// Indicates if the message was downlinked from an aircraft or broadcast from a ground station.
     pub downlink_status: DownlinkStatus,
-    pub msn: Option<[char; 3]>,
-    pub msn_seq: Option<char>,
+    /// Message snumber. Same as the message number but without the sequence number.
+    pub message_number_without_sequence: Option<[char; 3]>,
+    /// Message sequence number. Same as the message number but without the sequence start.
+    pub message_number_sequence: Option<char>,
     // reassembly_status: ReassemblyStatus,
 }
 
@@ -349,15 +344,15 @@ impl Display for AssembledACARSMessage {
             self.mode,
             self.get_tail_addr_display(),
             self.downlink_status,
-            self.ack,
+            self.acknowledgement,
             self.label.iter().collect::<String>().trim(),
             self.get_bid_display(),
             self.get_no_display(),
             self.get_flight_id_display(),
             self.get_sub_label_display(),
             self.get_mfi_display(),
-            self.err,
-            self.lvl,
+            self.parity_errors,
+            self.signal_level,
             self.get_msn_display(),
             self.get_msn_seq_display(),
             // self.reassembly_status,
@@ -372,28 +367,27 @@ impl AssembledACARSMessage {
         Self {
             mode: ' ',
             frequency: 0.0,
-            tail_addr: None,
+            aircraft_tail: None,
             downlink_status: DownlinkStatus::AirToGround,
-            ack: AckStatus::Nack,
+            acknowledgement: AckStatus::Nack,
             label: [' '; 2],
-            bid: ' ',
-            no: None,
+            block_id: ' ',
+            message_number: None,
             flight_id: None,
             sublabel: None,
             mfi: None,
-            bs: ' ',
-            be: ' ',
-            txt: None,
-            err: 0,
-            lvl: 0.0,
-            msn: None,
-            msn_seq: None,
-            // reassembly_status: ReassemblyStatus::Skipped,
+            block_start: ' ',
+            block_end: ' ',
+            message_text: None,
+            parity_errors: 0,
+            signal_level: 0.0,
+            message_number_without_sequence: None,
+            message_number_sequence: None,
         }
     }
 
     fn get_text_display(&self) -> String {
-        match &self.txt {
+        match &self.message_text {
             Some(txt) => {
                 if txt.len() > 1 {
                     format!("Text: {}", txt.iter().collect::<String>())
@@ -406,7 +400,7 @@ impl AssembledACARSMessage {
     }
 
     fn get_tail_addr_display(&self) -> String {
-        match &self.tail_addr {
+        match &self.aircraft_tail {
             Some(tail_addr) => {
                 let output = tail_addr.iter().collect::<String>();
                 if !output.trim().is_empty() {
@@ -420,7 +414,7 @@ impl AssembledACARSMessage {
     }
 
     fn get_no_display(&self) -> String {
-        match &self.no {
+        match &self.message_number {
             Some(no) => {
                 let output = no.iter().collect::<String>();
                 if !output.trim().is_empty() {
@@ -476,7 +470,7 @@ impl AssembledACARSMessage {
     }
 
     fn get_msn_display(&self) -> String {
-        match &self.msn {
+        match &self.message_number_without_sequence {
             Some(msn) => {
                 let output = msn.iter().collect::<String>();
                 if !output.trim().is_empty() {
@@ -490,7 +484,7 @@ impl AssembledACARSMessage {
     }
 
     fn get_msn_seq_display(&self) -> String {
-        match &self.msn_seq {
+        match &self.message_number_sequence {
             Some(msn_seq) => {
                 let output = String::from(*msn_seq);
                 if !output.trim().is_empty() {
@@ -504,12 +498,12 @@ impl AssembledACARSMessage {
     }
 
     fn get_bid_display(&self) -> String {
-        if self.bid as u8 == 0 {
+        if self.block_id as u8 == 0 {
             "".to_string()
         } else {
-            match self.bid {
+            match self.block_id {
                 ' ' => "".to_string(),
-                _ => format!("Block ID: {}, ", self.bid),
+                _ => format!("Block ID: {}, ", self.block_id),
             }
         }
     }
@@ -1068,11 +1062,6 @@ impl ACARSDecoder {
         self.generate_output_message();
     }
 
-    fn round(&self, x: f32, decimals: u32) -> f32 {
-        let y = 10i32.pow(decimals) as f32;
-        (x * y).round() / y
-    }
-
     fn generate_output_message(&mut self) {
         trace!(
             "[{: <13}] Generating output message",
@@ -1080,8 +1069,8 @@ impl ACARSDecoder {
         );
 
         let mut output_message = AssembledACARSMessage::new();
-        output_message.lvl = self.round(self.blk.lvl, 1);
-        output_message.err = self.blk.err as u8;
+        output_message.signal_level = round(self.blk.lvl, 1);
+        output_message.parity_errors = self.blk.err as u8;
         output_message.frequency = self.freq;
 
         let mut k: usize = 0;
@@ -1108,12 +1097,12 @@ impl ACARSDecoder {
 
         // Ensure we actually saved something as a tail address
         if tail_addr[0] != ' ' {
-            output_message.tail_addr = Some(tail_addr);
+            output_message.aircraft_tail = Some(tail_addr);
         }
 
         /* ACK/NAK */
         if self.blk.txt[k] != 0x15 {
-            output_message.ack = AckStatus::Ack(self.blk.txt[k] as char);
+            output_message.acknowledgement = AckStatus::Ack(self.blk.txt[k] as char);
         }
 
         k += 1;
@@ -1126,13 +1115,13 @@ impl ACARSDecoder {
         }
         k += 1;
 
-        output_message.bid = self.blk.txt[k] as char;
+        output_message.block_id = self.blk.txt[k] as char;
 
         k += 1;
 
         // #define IS_DOWNLINK_BLK(bid) ((bid) >= '0' && (bid) <= '9')
         let is_downlink: bool =
-            ((output_message.bid as u8) >= b'0') && ((output_message.bid as u8) <= b'9');
+            ((output_message.block_id as u8) >= b'0') && ((output_message.block_id as u8) <= b'9');
 
         if is_downlink {
             output_message.downlink_status = DownlinkStatus::AirToGround;
@@ -1140,11 +1129,11 @@ impl ACARSDecoder {
             output_message.downlink_status = DownlinkStatus::GroundToAir;
         }
 
-        output_message.bs = self.blk.txt[k] as char;
+        output_message.block_start = self.blk.txt[k] as char;
         k += 1;
-        output_message.be = self.blk.txt[self.blk.len - 1] as char;
+        output_message.block_end = self.blk.txt[self.blk.len - 1] as char;
 
-        if output_message.bs != 0x03 as char {
+        if output_message.block_start != 0x03 as char {
             if is_downlink {
                 /* message no */
                 let mut no: [char; 4] = [' '; 4];
@@ -1154,7 +1143,7 @@ impl ACARSDecoder {
                     k += 1;
                 }
 
-                output_message.no = Some(no);
+                output_message.message_number = Some(no);
 
                 /* The 3-char prefix is used in reassembly hash table key, so we need */
                 /* to store the MSN separately as prefix and seq character. */
@@ -1165,9 +1154,9 @@ impl ACARSDecoder {
                     i += 1;
                 }
 
-                output_message.msn = Some(output_msn);
+                output_message.message_number_without_sequence = Some(output_msn);
 
-                output_message.msn_seq = Some(no[3]);
+                output_message.message_number_sequence = Some(no[3]);
 
                 i = 0;
                 let mut output_flight_id = [' '; 6];
@@ -1242,14 +1231,14 @@ impl ACARSDecoder {
                     i += 1;
                 }
 
-                output_message.txt = Some(output_text);
+                output_message.message_text = Some(output_text);
             }
         // #ifdef HAVE_LIBACARS
         //        }
         // #endif
         } else {
             // empty message text
-            output_message.txt = Some(vec!['\0']);
+            output_message.message_text = Some(vec!['\0']);
         }
 
         // #ifdef HAVE_LIBACARS

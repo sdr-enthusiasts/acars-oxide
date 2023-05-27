@@ -3,6 +3,7 @@ members = [
     "rust/oxide-bin",
     "rust/oxide-config",
     "rust/oxide-decoders",
+    "rust/oxide-helpers",
     "rust/oxide-logging",
     "rust/oxide-output",
     "rust/oxide-rtlsdr",

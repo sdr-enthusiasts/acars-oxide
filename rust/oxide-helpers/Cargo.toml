@@ -1,5 +1,5 @@
 [package]
-name = "oxide-decoders"
+name = "oxide-helpers"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,9 +12,3 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-log = "0.4.17"
-custom_error = "1.9.2"
-num = "0.4.0"
-tokio = { version = "1.28.1", features = ["full", "tracing"] }
-oxide-helpers = { path = "../oxide-helpers" }
-# num-complex = "0.4.3"
