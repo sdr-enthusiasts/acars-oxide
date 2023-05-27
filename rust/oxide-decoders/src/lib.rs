@@ -1,4 +1,4 @@
-// Copyright (C) 2023  Fred Clausen
+// Copyright (C) 2023 Fred Clausen
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -30,6 +30,7 @@ pub mod decoders {
 pub enum ValidDecoderType {
     ACARS,
     VDL2,
+    HFDL,
 }
 
 pub trait Decoder: Send + Sync {
