@@ -339,7 +339,7 @@ impl Display for AssembledACARSMessage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Frequency: {:.1}, Mode: {}, {}Downlink Status: {}, Ack: {}, Label: {}, {}{}{}{}{}Reception Errors: {}, Signal Level: {}, {}{}{}",
+            "Frequency: {:.3}, Mode: {}, {}Downlink Status: {}, Ack: {}, Label: {}, {}{}{}{}{}Reception Errors: {}, Signal Level: {:.1}, {}{}{}",
             self.frequency,
             self.mode,
             self.get_tail_addr_display(),
