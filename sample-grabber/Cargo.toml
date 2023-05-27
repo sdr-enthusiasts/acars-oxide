@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 rtlsdr_mt = "2.0.0"
 rtlsdr_sys = "1.1.2"
+clap = { version = "4.2.7", features = ["derive"] }
