@@ -303,6 +303,39 @@ impl RtlSdr {
         }
     }
 
+    // TODO: This function is a duplicate of the callback in read_samples. This should be refactored
+
+    pub fn process_bytes(&mut self, bytes: &[u8], rtloutbufz: usize, vb: &mut [Complex<f32>]) {
+        let mut bytes_iterator = bytes.iter();
+
+        for m in 0..rtloutbufz {
+            for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
+                *vb_item = (bytes_iterator.next().expect("Ran out of bytes!").to_owned() as f32
+                    - 127.37)
+                    + (bytes_iterator.next().expect("Ran out of bytes!").to_owned() as f32
+                        - 127.37)
+                        * Complex::i();
+            }
+
+            for channel in &mut self.channel.iter_mut().take(self.frequencies.len()) {
+                let mut d: Complex<f32> = Complex::new(0.0, 0.0);
+
+                for (wf, vb_item) in vb
+                    .iter()
+                    .zip(channel.get_wf_iter())
+                    .take(self.rtl_mult as usize)
+                {
+                    d += vb_item * wf;
+                }
+
+                channel.set_dm_buffer_at_index(m, d.norm());
+            }
+        }
+        for channel in &mut self.channel.iter_mut().take(self.frequencies.len()) {
+            channel.decode(rtloutbufz);
+        }
+    }
+
     pub async fn read_samples(mut self) {
         let rtloutbufz = self.get_rtloutbufsz();
         let buffer_len: u32 = rtloutbufz as u32 * self.rtl_mult as u32 * 2;
@@ -441,4 +474,114 @@ pub fn devices() -> impl Iterator<Item = DeviceAttributes> {
     }
 
     devices.into_iter()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fs::File, io::Read};
+
+    use tokio::sync::mpsc;
+
+    use super::*;
+
+    // TODO: Grab sample that includes a SQ
+    // TODO: Grab a sample that includes a sub label
+    // TODO: Grab a sample that includes a parity error
+
+    #[test]
+    fn test_acars_samples() -> Result<(), Box<dyn std::error::Error>> {
+        let ppm = 0;
+        let gain = 421;
+        let bias_tee = false;
+        let rtl_mult = 160;
+        let frequencies = [130.025, 130.45, 131.125, 131.55];
+        let decoder_type = ValidDecoderType::ACARS;
+
+        let mut rtl = RtlSdr::new(
+            "00000001".to_string(),
+            ppm,
+            gain,
+            bias_tee,
+            rtl_mult,
+            frequencies.to_vec(),
+            decoder_type,
+        );
+
+        let (tx_channel, mut rx) = mpsc::unbounded_channel();
+
+        match rtl.init_channels(tx_channel, rtl.get_intrate() * rtl.rtl_mult) {
+            Ok(_) => {
+                info!("[{: <13}] Channels initialized", rtl.get_serial());
+            }
+            Err(e) => {
+                error!(
+                    "[{: <13}] Error initializing channels: {}",
+                    rtl.get_serial(),
+                    e
+                );
+
+                // return error
+                return Err(Box::new(e));
+            }
+        }
+
+        let rtloutbufz = rtl.get_rtloutbufsz();
+        let buffer_len: u32 = rtloutbufz as u32 * rtl.rtl_mult as u32 * 2;
+        let mut vb: [Complex<f32>; 320] = [Complex::new(0.0, 0.0); 320];
+
+        for i in 1..=6 {
+            let mut num_reads = 0;
+            let mut file = File::open(format!("../../test data/acars_0{}.bin", i))?;
+            loop {
+                let mut buffer = vec![];
+                let n = file
+                    .by_ref()
+                    .take(buffer_len as u64)
+                    .read_to_end(&mut buffer)?;
+                if n == 0 {
+                    //return an error if we didn't read anything
+                    break;
+                }
+
+                assert!(
+                    buffer.len() == buffer_len as usize,
+                    "Buffer length is not {}. Found {}",
+                    buffer_len,
+                    buffer.len()
+                );
+
+                num_reads += 1;
+
+                rtl.process_bytes(&buffer, rtloutbufz, &mut vb);
+            }
+
+            assert!(
+                num_reads == 100,
+                "Number of reads is not 100. Found {}",
+                num_reads
+            );
+        }
+
+        // go through the rx channel and check that we have the correct number of messages
+
+        let mut num_messages = 0;
+
+        loop {
+            match rx.try_recv() {
+                Ok(msg) => {
+                    num_messages += 1;
+                    println!("{}", msg);
+                }
+                Err(_) => break,
+            }
+        }
+
+        assert!(
+            num_messages == 26,
+            "Number of messages is not 6. Found {}",
+            num_messages
+        );
+
+        Ok(())
+    }
 }
