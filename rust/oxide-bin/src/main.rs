@@ -21,8 +21,8 @@ extern crate oxide_rtlsdr;
 use oxide_config::clap::Parser;
 use oxide_config::OxideInput;
 use oxide_decoders::ValidDecoderType;
-use oxide_logging::SetupLogging;
 use oxide_rtlsdr::RtlSdr;
+use sdre_rust_logging::SetupLogging;
 use tokio::time::{sleep, Duration};
 
 #[tokio::main]
