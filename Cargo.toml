@@ -3,15 +3,17 @@ members = [
     "rust/oxide-bin",
     "rust/oxide-config",
     "rust/oxide-decoders",
-    "rust/oxide-logging",
+    "rust/oxide-helpers",
     "rust/oxide-output",
     "rust/oxide-rtlsdr",
     "rust/oxide-scanner",
 ]
 
+exclude = ["sample-grabber"]
+
 [workspace.package]
 edition = "2021"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Fred Clausen"]
 description = "ACARS Oxide. A utility to receive, via librtlsdr and RTL-SDR dongle(s), ACARS and VDLM2 messages."
 documentation = "https://github.com/sdr-enthusiasts/acars-oxide"
