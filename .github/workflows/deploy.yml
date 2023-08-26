@@ -197,7 +197,7 @@ jobs:
 
   release_binaries:
     name: Release Binaries
-    if: ${{ github.event.inputs.use_test_image == 'false' }}
+    if: ${{ github.event.inputs.use_test_image == 'false' || github.event.inputs.use_test_image == '' }}
     needs:
       [
         binary_build_amd64,
