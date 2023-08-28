@@ -1,0 +1,14 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+
+AO_COMMAND=()
+
+if [[ ${AO_VERBOSITY,,} =~ debug || $AO_VERBOSITY -eq 1 ]]; then
+    AO_COMMAND+=("-l")
+elif [[ ${AO_VERBOSITY,,} =~ trace  || $AO_VERBOSITY -ge 2 ]]; then
+    AO_COMMAND+=("-l -l")
+fi
+
+echo "Starting acars-oxide with command: /opt/acars-oxide ${AO_COMMAND[*]}"
+
+/opt/acars-oxide "${AO_COMMAND[@]}"
