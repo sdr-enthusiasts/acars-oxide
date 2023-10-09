@@ -87,7 +87,7 @@ impl RtlSdr {
             rtl_mult,
             frequencies,
             // array_init::array_init(|i: usize| (i * i) as u32);
-            channel: array_init::from_iter(channels.into_iter()).unwrap(),
+            channel: array_init::from_iter(channels).unwrap(),
             decoder_type: decoder,
         }
     }
