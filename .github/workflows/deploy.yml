@@ -75,7 +75,7 @@ jobs:
           outputs: type=local,dest=./image_armv7/
 
       - name: Upload artifact armv7 binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@4.0.0
         with:
           name: acars-oxide.armv7
           path: ./image_armv7/acars-oxide
@@ -115,7 +115,7 @@ jobs:
           outputs: type=local,dest=./image_arm64/
 
       - name: Upload artifact arm64 binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@4.0.0
         with:
           name: acars-oxide.arm64
           path: ./image_arm64/acars-oxide
@@ -155,7 +155,7 @@ jobs:
           outputs: type=local,dest=./image_amd64/
 
       - name: Upload artifact amd64 binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@4.0.0
         with:
           name: acars-oxide.amd64
           path: ./image_amd64/acars-oxide
