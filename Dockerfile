@@ -11,6 +11,7 @@ RUN set -x && \
     KEPT_PACKAGES=() && \
     TEMP_PACKAGES=() && \
     KEPT_PACKAGES+=(libzmq5) && \
+    KEPT_PACKAGES+=(librtlsdr-dev) && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     "${KEPT_PACKAGES[@]}" \
