@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Fred Clausen
+// Copyright (C) 2023-2024 Fred Clausen
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -47,7 +47,7 @@ async fn main() {
             let gain = args.sdr1gain.unwrap_or(0);
             let bias_tee = args.sdr1biastee.unwrap_or(false);
             let rtl_mult = args.sdr1mult.unwrap_or(160);
-            let frequencies = args.sdr1freqs.unwrap_or(vec![]);
+            let frequencies = args.sdr1freqs.unwrap_or_default();
             let decoder_type = args.sdr1decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
             let sdr = RtlSdr::new(
@@ -73,7 +73,7 @@ async fn main() {
             let gain = args.sdr2gain.unwrap_or(0);
             let bias_tee = args.sdr2biastee.unwrap_or(false);
             let rtl_mult = args.sdr2mult.unwrap_or(160);
-            let frequencies = args.sdr2freqs.unwrap_or(vec![]);
+            let frequencies = args.sdr2freqs.unwrap_or_default();
             let decoder_type = args.sdr2decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
             let sdr = RtlSdr::new(
@@ -99,7 +99,7 @@ async fn main() {
             let gain = args.sdr3gain.unwrap_or(0);
             let bias_tee = args.sdr3biastee.unwrap_or(false);
             let rtl_mult = args.sdr3mult.unwrap_or(160);
-            let frequencies = args.sdr3freqs.unwrap_or(vec![]);
+            let frequencies = args.sdr3freqs.unwrap_or_default();
             let decoder_type = args.sdr3decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
             let sdr = RtlSdr::new(
@@ -125,7 +125,7 @@ async fn main() {
             let gain = args.sdr4gain.unwrap_or(0);
             let bias_tee = args.sdr4biastee.unwrap_or(false);
             let rtl_mult = args.sdr4mult.unwrap_or(160);
-            let frequencies = args.sdr4freqs.unwrap_or(vec![]);
+            let frequencies = args.sdr4freqs.unwrap_or_default();
             let decoder_type = args.sdr4decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
             let sdr = RtlSdr::new(
@@ -151,7 +151,7 @@ async fn main() {
             let gain = args.sdr5gain.unwrap_or(0);
             let bias_tee = args.sdr5biastee.unwrap_or(false);
             let rtl_mult = args.sdr5mult.unwrap_or(160);
-            let frequencies = args.sdr5freqs.unwrap_or(vec![]);
+            let frequencies = args.sdr5freqs.unwrap_or_default();
             let decoder_type = args.sdr5decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
             let sdr = RtlSdr::new(
@@ -177,7 +177,7 @@ async fn main() {
             let gain = args.sdr6gain.unwrap_or(0);
             let bias_tee = args.sdr6biastee.unwrap_or(false);
             let rtl_mult = args.sdr6mult.unwrap_or(160);
-            let frequencies = args.sdr6freqs.unwrap_or(vec![]);
+            let frequencies = args.sdr6freqs.unwrap_or_default();
             let decoder_type = args.sdr6decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
             let sdr = RtlSdr::new(
@@ -203,7 +203,7 @@ async fn main() {
             let gain = args.sdr7gain.unwrap_or(0);
             let bias_tee = args.sdr7biastee.unwrap_or(false);
             let rtl_mult = args.sdr7mult.unwrap_or(160);
-            let frequencies = args.sdr7freqs.unwrap_or(vec![]);
+            let frequencies = args.sdr7freqs.unwrap_or_default();
             let decoder_type = args.sdr7decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
             let sdr = RtlSdr::new(
@@ -229,7 +229,7 @@ async fn main() {
             let gain = args.sdr8gain.unwrap_or(0);
             let bias_tee = args.sdr8biastee.unwrap_or(false);
             let rtl_mult = args.sdr8mult.unwrap_or(160);
-            let frequencies = args.sdr8freqs.unwrap_or(vec![]);
+            let frequencies = args.sdr8freqs.unwrap_or_default();
             let decoder_type = args.sdr8decoding_type.unwrap_or(ValidDecoderType::ACARS);
 
             let sdr = RtlSdr::new(

@@ -1,4 +1,4 @@
-// Copyright (C) 2023  Fred Clausen
+// Copyright (C) 2023-2024 Fred Clausen
 
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
