@@ -12,6 +12,6 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-clap = { version = "4.4.16", features = ["derive", "env"] }
+clap = { version = "4.4.17", features = ["derive", "env"] }
 custom_error = "1.9.2"
 oxide-decoders = { path = "../oxide-decoders" }
