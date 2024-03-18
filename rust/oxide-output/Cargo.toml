@@ -13,5 +13,5 @@ rust-version.workspace = true
 
 [dependencies]
 tokio = { version = "1.36.0", features = ["full", "tracing"] }
-log = "0.4.20"
+log = "0.4.21"
 oxide-decoders = { path = "../oxide-decoders" }
