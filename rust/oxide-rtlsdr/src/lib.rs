@@ -21,6 +21,7 @@ use num::Complex;
 use oxide_decoders::decoders::acars::ACARSDecoder;
 use oxide_decoders::decoders::acars::{self, AssembledACARSMessage};
 use oxide_decoders::{Decoder, ValidDecoderType};
+use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::sync::mpsc::UnboundedSender;
 
 use custom_error::custom_error;
@@ -39,8 +40,8 @@ custom_error! {pub RTLSDRError
 }
 
 pub struct RtlSdr {
-    ctl: Option<Controller>,
-    reader: Option<Reader>,
+    ctl: Option<rtlsdr_rs::RtlSdr>,
+    //reader: Option<BufReader<rtlsdr_rs::RtlSdr>>,
     index: Option<u32>,
     serial: String,
     ppm: i32,
@@ -77,7 +78,7 @@ impl RtlSdr {
 
         Self {
             ctl: None,
-            reader: None,
+            //reader: None,
             index: None,
             serial,
             ppm,
@@ -182,11 +183,11 @@ impl RtlSdr {
     ) -> Result<(), RTLSDRError> {
         let rtl_in_rate = self.get_intrate() * self.rtl_mult;
 
-        info!("[{: <13}] Using found device at index {}", self.serial, idx);
+        //info!("[{: <13}] Using found device at index {}", self.serial, idx);
 
-        let (mut ctl, reader) = rtlsdr_mt::open(self.index.unwrap()).unwrap();
+        let mut ctl = rtlsdr_rs::RtlSdr::open_by_serial(&self.serial).unwrap();
 
-        self.reader = Some(reader);
+        //self.reader = Some(BufReader::new(ctl));
 
         // remove any duplicate frequencies
         // I cannot imagine we would EVER see this, but just in case
@@ -198,48 +199,28 @@ impl RtlSdr {
             });
         }
 
-        if self.gain <= 500 {
-            let mut gains = [0i32; 32];
-            ctl.tuner_gains(&mut gains);
-            debug!("[{: <13}] Using Gains: {:?}", self.serial, gains);
-            let mut close_gain = gains[0];
-            // loop through gains and see which value is closest to the desired gain
-            for gain_value in gains {
-                if gain_value == 0 {
-                    continue;
-                }
-
-                let err1 = i32::abs(self.gain - close_gain);
-                let err2 = i32::abs(self.gain - gain_value);
-
-                if err2 < err1 {
-                    trace!("[{: <13}] Found closer gain: {}", self.serial, gain_value);
-                    close_gain = gain_value;
-                }
-            }
-
-            if self.gain != close_gain {
-                warn!(
-                            "[{: <13}] Input gain {} was normalized to a SDR supported gain of {}. Gain is set to the normalized gain.",
-                            self.serial, self.gain, close_gain
-                        );
-                self.gain = close_gain;
-            } else {
-                info!("[{: <13}] setting gain to {}", self.serial, self.gain);
-            }
-
-            ctl.disable_agc().unwrap();
-            ctl.set_tuner_gain(self.gain).unwrap();
+        // set gain
+        let gains = ctl.get_tuner_gains().unwrap();
+        let closest_gain = if self.gain < 0 {
+            TunerGain::Auto
         } else {
-            info!(
-                "[{: <13}] Setting gain to Auto Gain Control (AGC)",
-                self.serial
-            );
-            ctl.enable_agc().unwrap();
-        }
+            let temp_gain = gains
+                .iter()
+                .min_by(|a, b| {
+                    (self.gain - **a)
+                        .abs()
+                        .partial_cmp(&(self.gain - **b).abs())
+                        .unwrap()
+                })
+                .unwrap();
+
+            TunerGain::Manual(*temp_gain)
+        };
+
+        info!("[{: <13}] Setting gain to {}", self.serial, closest_gain);
 
         info!("[{: <13}] Setting PPM to {}", self.serial, self.ppm);
-        ctl.set_ppm(self.ppm).unwrap();
+        ctl.set_freq_correction(self.ppm).unwrap();
 
         if self.bias_tee {
             warn!(
@@ -273,6 +254,14 @@ impl RtlSdr {
         );
         ctl.set_sample_rate(rtl_in_rate as u32).unwrap();
 
+        // Enable test mode
+        info!("Enable test mode");
+        ctl.set_testmode(true).unwrap();
+
+        // Reset the endpoint before we try to read from it (mandatory)
+        info!("Reset buffer");
+        ctl.reset_buffer().unwrap();
+
         self.ctl = Some(ctl);
 
         Ok(())
@@ -284,7 +273,8 @@ impl RtlSdr {
                 error!("[{: <13}] Device not open", self.serial);
             }
             Some(mut ctl) => {
-                ctl.cancel_async_read();
+                unimplemented!()
+                //ctl.cancel_async_read();
             }
         }
     }
@@ -326,47 +316,44 @@ impl RtlSdr {
         let rtloutbufz = self.get_rtloutbufsz();
         let buffer_len: u32 = rtloutbufz as u32 * self.rtl_mult as u32 * 2;
         let mut vb: [Complex<f32>; 320] = [Complex::new(0.0, 0.0); 320];
+        let mut buffer = vec![0u8; buffer_len as usize];
 
-        match self.reader {
+        match self.ctl {
             None => {
                 error!("[{: <13}] Device not open", self.serial);
             }
 
             Some(mut reader) => {
-                reader
-                    .read_async(4, buffer_len, |bytes: &[u8]| {
-                        let mut bytes_iterator = bytes.iter();
+                let read = reader.read(&mut buffer).await.unwrap();
 
-                        for m in 0..rtloutbufz {
-                            for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
-                                *vb_item = (*bytes_iterator.next().expect("Ran out of bytes!")
-                                    as f32
-                                    - 127.37_f32)
-                                    + (*bytes_iterator.next().expect("Ran out of bytes!") as f32
-                                        - 127.37_f32)
-                                        * Complex::i();
-                            }
+                let mut bytes_iterator = buffer.iter().take(read);
 
-                            for channel in &mut self.channel.iter_mut().take(self.frequencies.len())
-                            {
-                                let mut d: Complex<f32> = Complex::new(0.0, 0.0);
+                for m in 0..rtloutbufz {
+                    for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
+                        *vb_item = (*bytes_iterator.next().expect("Ran out of bytes!") as f32
+                            - 127.37_f32)
+                            + (*bytes_iterator.next().expect("Ran out of bytes!") as f32
+                                - 127.37_f32)
+                                * Complex::i();
+                    }
 
-                                for (wf, vb_item) in vb
-                                    .iter()
-                                    .zip(channel.get_wf_iter())
-                                    .take(self.rtl_mult as usize)
-                                {
-                                    d += vb_item * wf;
-                                }
+                    for channel in &mut self.channel.iter_mut().take(self.frequencies.len()) {
+                        let mut d: Complex<f32> = Complex::new(0.0, 0.0);
 
-                                channel.set_dm_buffer_at_index(m, d.norm());
-                            }
+                        for (wf, vb_item) in vb
+                            .iter()
+                            .zip(channel.get_wf_iter())
+                            .take(self.rtl_mult as usize)
+                        {
+                            d += vb_item * wf;
                         }
-                        for channel in &mut self.channel.iter_mut().take(self.frequencies.len()) {
-                            channel.decode(rtloutbufz);
-                        }
-                    })
-                    .unwrap();
+
+                        channel.set_dm_buffer_at_index(m, d.norm());
+                    }
+                }
+                for channel in &mut self.channel.iter_mut().take(self.frequencies.len()) {
+                    channel.decode(rtloutbufz);
+                }
             }
         }
     }
@@ -425,39 +412,39 @@ impl Display for DeviceAttributes {
 /// The iterator yields a DeviceAttributes in index order, so the device with the first yielded
 /// name can be opened at index 0, and so on.
 
-pub fn devices() -> impl Iterator<Item = DeviceAttributes> {
-    let count = unsafe { rtlsdr_sys::rtlsdr_get_device_count() };
+// pub fn devices() -> impl Iterator<Item = DeviceAttributes> {
+//     let count = unsafe { rtlsdr_sys::rtlsdr_get_device_count() };
 
-    let mut devices = Vec::with_capacity(count as usize);
+//     let mut devices = Vec::with_capacity(count as usize);
 
-    for idx in 0..count {
-        let mut vendor_space = [0u8; 256];
-        let mut product_space = [0u8; 256];
-        let mut serial_space = [0u8; 256];
-        let vendor: *mut c_char = vendor_space.as_mut_ptr() as *mut c_char;
-        let product: *mut c_char = product_space.as_mut_ptr() as *mut c_char;
-        let serial: *mut c_char = serial_space.as_mut_ptr() as *mut c_char;
+//     for idx in 0..count {
+//         let mut vendor_space = [0u8; 256];
+//         let mut product_space = [0u8; 256];
+//         let mut serial_space = [0u8; 256];
+//         let vendor: *mut c_char = vendor_space.as_mut_ptr() as *mut c_char;
+//         let product: *mut c_char = product_space.as_mut_ptr() as *mut c_char;
+//         let serial: *mut c_char = serial_space.as_mut_ptr() as *mut c_char;
 
-        unsafe { rtlsdr_sys::rtlsdr_get_device_usb_strings(idx, vendor, product, serial) };
-        let safe_vendor = unsafe { CStr::from_ptr(vendor).to_str().unwrap() };
-        let safe_product = unsafe { CStr::from_ptr(product).to_str().unwrap() };
-        let safe_serial = unsafe { CStr::from_ptr(serial).to_str().unwrap() };
+//         unsafe { rtlsdr_sys::rtlsdr_get_device_usb_strings(idx, vendor, product, serial) };
+//         let safe_vendor = unsafe { CStr::from_ptr(vendor).to_str().unwrap() };
+//         let safe_product = unsafe { CStr::from_ptr(product).to_str().unwrap() };
+//         let safe_serial = unsafe { CStr::from_ptr(serial).to_str().unwrap() };
 
-        devices.push(DeviceAttributes::new(
-            idx,
-            safe_vendor.to_string(),
-            safe_product.to_string(),
-            safe_serial.to_string(),
-        ));
-    }
+//         devices.push(DeviceAttributes::new(
+//             idx,
+//             safe_vendor.to_string(),
+//             safe_product.to_string(),
+//             safe_serial.to_string(),
+//         ));
+//     }
 
-    debug!("[DEVICE INIT  ] Found {} RTL-SDR devices", devices.len());
-    for device in devices.iter() {
-        debug!("[DEVICE INIT  ] {}", device);
-    }
+//     debug!("[DEVICE INIT  ] Found {} RTL-SDR devices", devices.len());
+//     for device in devices.iter() {
+//         debug!("[DEVICE INIT  ] {}", device);
+//     }
 
-    devices.into_iter()
-}
+//     devices.into_iter()
+// }
 
 #[cfg(test)]
 mod tests {

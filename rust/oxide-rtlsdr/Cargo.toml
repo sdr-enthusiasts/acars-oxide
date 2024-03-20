@@ -18,5 +18,6 @@ custom_error = "1.9.2"
 oxide-decoders = { path = "../oxide-decoders" }
 tokio = { version = "1.36.0", features = ["full", "tracing"] }
 array-init = "2.1.0"
-rtlsdr-rs = { path = "../../../../airrames/rtl-sdr-rs" }
+rtlsdr-rs = { git = "https://github.com/fredclausen/rtl-sdr-rs" }
+#rtlsdr-rs = { path = "../../../../airrames/rtl-sdr-rs" }
 # num-complex = "0.4.3"
