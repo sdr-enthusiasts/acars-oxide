@@ -13,13 +13,10 @@ rust-version.workspace = true
 
 [dependencies]
 log = "0.4.21"
-libc = "0.2.153"
-rtlsdr_mt = "2.2.0"
-rtlsdr_sys = "1.1.2"
-ctrlc = "3.4.4"
 num = "0.4.1"
 custom_error = "1.9.2"
 oxide-decoders = { path = "../oxide-decoders" }
 tokio = { version = "1.36.0", features = ["full", "tracing"] }
 array-init = "2.1.0"
+rtlsdr-rs = { path = "../../../../airrames/rtl-sdr-rs" }
 # num-complex = "0.4.3"

@@ -21,15 +21,14 @@ use num::Complex;
 use oxide_decoders::decoders::acars::ACARSDecoder;
 use oxide_decoders::decoders::acars::{self, AssembledACARSMessage};
 use oxide_decoders::{Decoder, ValidDecoderType};
-use rtlsdr_mt::{Controller, Reader};
 use tokio::sync::mpsc::UnboundedSender;
-
-extern crate libc;
 
 use custom_error::custom_error;
 use std::ffi::c_char;
 use std::ffi::CStr;
 use std::fmt::{self, Display, Formatter};
+
+use rtlsdr_rs::*;
 
 // TODO: Can I wrap the librtlsdr logging functions to use the log crate?
 
@@ -181,115 +180,100 @@ impl RtlSdr {
         &mut self,
         output_channel: UnboundedSender<AssembledACARSMessage>,
     ) -> Result<(), RTLSDRError> {
-        let mut device_index = None;
-        for dev in devices() {
-            if dev.serial() == self.serial {
-                device_index = Some(dev.index());
-            }
+        let rtl_in_rate = self.get_intrate() * self.rtl_mult;
+
+        info!("[{: <13}] Using found device at index {}", self.serial, idx);
+
+        let (mut ctl, reader) = rtlsdr_mt::open(self.index.unwrap()).unwrap();
+
+        self.reader = Some(reader);
+
+        // remove any duplicate frequencies
+        // I cannot imagine we would EVER see this, but just in case
+
+        self.frequencies.dedup();
+        if self.frequencies.is_empty() {
+            return Err(RTLSDRError::NoFrequencyProvided {
+                sdr: self.serial.clone(),
+            });
         }
-        match device_index {
-            None => {
-                return Err(RTLSDRError::DeviceNotFound {
-                    sdr: self.serial.clone(),
-                });
-            }
-            Some(idx) => {
-                self.index = Some(idx);
-                let rtl_in_rate = self.get_intrate() * self.rtl_mult;
-                info!("[{: <13}] Using found device at index {}", self.serial, idx);
 
-                let (mut ctl, reader) = rtlsdr_mt::open(self.index.unwrap()).unwrap();
-
-                self.reader = Some(reader);
-
-                // remove any duplicate frequencies
-                // I cannot imagine we would EVER see this, but just in case
-
-                self.frequencies.dedup();
-                if self.frequencies.is_empty() {
-                    return Err(RTLSDRError::NoFrequencyProvided {
-                        sdr: self.serial.clone(),
-                    });
+        if self.gain <= 500 {
+            let mut gains = [0i32; 32];
+            ctl.tuner_gains(&mut gains);
+            debug!("[{: <13}] Using Gains: {:?}", self.serial, gains);
+            let mut close_gain = gains[0];
+            // loop through gains and see which value is closest to the desired gain
+            for gain_value in gains {
+                if gain_value == 0 {
+                    continue;
                 }
 
-                if self.gain <= 500 {
-                    let mut gains = [0i32; 32];
-                    ctl.tuner_gains(&mut gains);
-                    debug!("[{: <13}] Using Gains: {:?}", self.serial, gains);
-                    let mut close_gain = gains[0];
-                    // loop through gains and see which value is closest to the desired gain
-                    for gain_value in gains {
-                        if gain_value == 0 {
-                            continue;
-                        }
+                let err1 = i32::abs(self.gain - close_gain);
+                let err2 = i32::abs(self.gain - gain_value);
 
-                        let err1 = i32::abs(self.gain - close_gain);
-                        let err2 = i32::abs(self.gain - gain_value);
+                if err2 < err1 {
+                    trace!("[{: <13}] Found closer gain: {}", self.serial, gain_value);
+                    close_gain = gain_value;
+                }
+            }
 
-                        if err2 < err1 {
-                            trace!("[{: <13}] Found closer gain: {}", self.serial, gain_value);
-                            close_gain = gain_value;
-                        }
-                    }
-
-                    if self.gain != close_gain {
-                        warn!(
+            if self.gain != close_gain {
+                warn!(
                             "[{: <13}] Input gain {} was normalized to a SDR supported gain of {}. Gain is set to the normalized gain.",
                             self.serial, self.gain, close_gain
                         );
-                        self.gain = close_gain;
-                    } else {
-                        info!("[{: <13}] setting gain to {}", self.serial, self.gain);
-                    }
-
-                    ctl.disable_agc().unwrap();
-                    ctl.set_tuner_gain(self.gain).unwrap();
-                } else {
-                    info!(
-                        "[{: <13}] Setting gain to Auto Gain Control (AGC)",
-                        self.serial
-                    );
-                    ctl.enable_agc().unwrap();
-                }
-
-                info!("[{: <13}] Setting PPM to {}", self.serial, self.ppm);
-                ctl.set_ppm(self.ppm).unwrap();
-
-                if self.bias_tee {
-                    warn!(
-                        "[{: <13}] BiasTee is not supported right now. Maybe soon...",
-                        self.serial
-                    );
-                }
-                // Verify freq spread less than 2mhz. This is much less complex than acarsdec
-                // but I fail to see how this is not equivalent with a lot less bullshit
-
-                if self.frequencies.len() > 1
-                    && self.frequencies[self.frequencies.len() - 1] - self.frequencies[0] > 2.0
-                {
-                    return Err(RTLSDRError::FrequencySpreadTooLarge {
-                        sdr: self.serial.clone(),
-                    });
-                }
-
-                match self.init_channels(output_channel, rtl_in_rate) {
-                    Ok(center_freq) => {
-                        ctl.set_center_freq(center_freq as u32).unwrap();
-                    }
-                    Err(e) => {
-                        return Err(e);
-                    }
-                }
-
-                info!(
-                    "[{: <13}] Setting sample rate to {}",
-                    self.serial, rtl_in_rate
-                );
-                ctl.set_sample_rate(rtl_in_rate as u32).unwrap();
-
-                self.ctl = Some(ctl);
+                self.gain = close_gain;
+            } else {
+                info!("[{: <13}] setting gain to {}", self.serial, self.gain);
             }
-        };
+
+            ctl.disable_agc().unwrap();
+            ctl.set_tuner_gain(self.gain).unwrap();
+        } else {
+            info!(
+                "[{: <13}] Setting gain to Auto Gain Control (AGC)",
+                self.serial
+            );
+            ctl.enable_agc().unwrap();
+        }
+
+        info!("[{: <13}] Setting PPM to {}", self.serial, self.ppm);
+        ctl.set_ppm(self.ppm).unwrap();
+
+        if self.bias_tee {
+            warn!(
+                "[{: <13}] BiasTee is not supported right now. Maybe soon...",
+                self.serial
+            );
+        }
+        // Verify freq spread less than 2mhz. This is much less complex than acarsdec
+        // but I fail to see how this is not equivalent with a lot less bullshit
+
+        if self.frequencies.len() > 1
+            && self.frequencies[self.frequencies.len() - 1] - self.frequencies[0] > 2.0
+        {
+            return Err(RTLSDRError::FrequencySpreadTooLarge {
+                sdr: self.serial.clone(),
+            });
+        }
+
+        match self.init_channels(output_channel, rtl_in_rate) {
+            Ok(center_freq) => {
+                ctl.set_center_freq(center_freq as u32).unwrap();
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+
+        info!(
+            "[{: <13}] Setting sample rate to {}",
+            self.serial, rtl_in_rate
+        );
+        ctl.set_sample_rate(rtl_in_rate as u32).unwrap();
+
+        self.ctl = Some(ctl);
 
         Ok(())
     }
