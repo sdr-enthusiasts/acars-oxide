@@ -750,6 +750,7 @@ impl ACARSDecoder {
     fn decode_acars(&mut self) {
         match self.acars_state {
             ACARSState::Wsyn => {
+                trace!("[{: <13}] WSYN", format!("{}:{}", "ACARS", self.frequency));
                 if self.outbits == SYN {
                     self.acars_state = ACARSState::Syn2;
                     self.nbits = 8;
