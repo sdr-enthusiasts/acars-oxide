@@ -4,9 +4,9 @@
 AO_COMMAND=()
 
 if [[ ${AO_VERBOSITY,,} =~ debug || $AO_VERBOSITY -eq 1 ]]; then
-    AO_COMMAND+=("-l -l -l -l")
+    AO_COMMAND+=("-l" "-l" "-l" "-l")
 elif [[ ${AO_VERBOSITY,,} =~ trace  || $AO_VERBOSITY -ge 2 ]]; then
-    AO_COMMAND+=("-l -l -l -l -l")
+    AO_COMMAND+=("-l" "-l" "-l" "-l" "-l")
 fi
 
 echo "Starting acars-oxide with command: /opt/acars-oxide ${AO_COMMAND[*]}"
