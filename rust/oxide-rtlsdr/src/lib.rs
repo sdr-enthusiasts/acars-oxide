@@ -323,7 +323,7 @@ impl RtlSdr {
                 error!("[{: <13}] Device not open", self.serial);
             }
 
-            Some(mut reader) => {
+            Some(mut reader) => loop {
                 let read = reader.read(&mut buffer).await.unwrap();
 
                 let mut bytes_iterator = buffer.iter().take(read);
@@ -354,7 +354,7 @@ impl RtlSdr {
                 for channel in &mut self.channel.iter_mut().take(self.frequencies.len()) {
                     channel.decode(rtloutbufz);
                 }
-            }
+            },
         }
     }
 
