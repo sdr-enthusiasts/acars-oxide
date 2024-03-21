@@ -255,8 +255,8 @@ impl RtlSdr {
         ctl.set_sample_rate(rtl_in_rate as u32).unwrap();
 
         // Enable test mode
-        info!("Enable test mode");
-        ctl.set_testmode(true).unwrap();
+        // info!("Enable test mode");
+        // ctl.set_testmode(true).unwrap();
 
         // Reset the endpoint before we try to read from it (mandatory)
         info!("Reset buffer");
