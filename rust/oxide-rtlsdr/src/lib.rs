@@ -325,7 +325,6 @@ impl RtlSdr {
 
             Some(mut reader) => loop {
                 let read = reader.read(&mut buffer).await.unwrap();
-                info!("Read {} bytes", read);
 
                 let mut bytes_iterator = buffer.iter().take(read);
 
