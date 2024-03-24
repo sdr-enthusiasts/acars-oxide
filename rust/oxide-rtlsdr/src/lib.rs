@@ -186,6 +186,7 @@ impl RtlSdr {
         //info!("[{: <13}] Using found device at index {}", self.serial, idx);
 
         let mut ctl = rtlsdr_rs::RtlSdr::open_by_serial(&self.serial).unwrap();
+        ctl.set_direct_sampling(DirectSampleMode::On).unwrap();
         // Reset the endpoint before we try to read from it (mandatory)
         info!("Reset buffer");
         ctl.reset_buffer().unwrap();
