@@ -352,6 +352,7 @@ impl RtlSdr {
                 reader
                     .read_async(4, buffer_len, |bytes: &[u8]| {
                         let mut bytes_iterator = bytes.iter();
+                        println!("Read {} bytes", bytes.len());
 
                         for m in 0..rtloutbufz {
                             for vb_item in vb.iter_mut().take(self.rtl_mult as usize) {
