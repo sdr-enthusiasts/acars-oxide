@@ -324,8 +324,11 @@ impl RtlSdr {
             }
 
             Some(mut reader) => loop {
+                // time the read
+                let start = std::time::Instant::now();
                 let read = reader.read(&mut buffer).await.unwrap();
-                println!("Read {} bytes", read);
+                let elapsed = start.elapsed();
+                println!("Read {} bytes in {:?}", read, elapsed);
 
                 let mut bytes_iterator = buffer.iter().take(read);
 
