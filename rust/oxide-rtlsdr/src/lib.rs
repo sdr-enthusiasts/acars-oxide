@@ -186,6 +186,9 @@ impl RtlSdr {
         //info!("[{: <13}] Using found device at index {}", self.serial, idx);
 
         let mut ctl = rtlsdr_rs::RtlSdr::open_by_serial(&self.serial).unwrap();
+        // Reset the endpoint before we try to read from it (mandatory)
+        info!("Reset buffer");
+        ctl.reset_buffer().unwrap();
 
         //self.reader = Some(BufReader::new(ctl));
 
@@ -258,10 +261,6 @@ impl RtlSdr {
         // info!("Enable test mode");
         // ctl.set_testmode(true).unwrap();
 
-        // Reset the endpoint before we try to read from it (mandatory)
-        info!("Reset buffer");
-        ctl.reset_buffer().unwrap();
-
         self.ctl = Some(ctl);
 
         Ok(())
@@ -325,10 +324,7 @@ impl RtlSdr {
 
             Some(mut reader) => loop {
                 // time the read
-                let start = std::time::Instant::now();
                 let read = reader.read(&mut buffer).await.unwrap();
-                let elapsed = start.elapsed();
-                println!("Read {} bytes in {:?}", read, elapsed);
 
                 let mut bytes_iterator = buffer.iter().take(read);
 
