@@ -316,7 +316,8 @@ impl RtlSdr {
         let rtloutbufz = self.get_rtloutbufsz();
         let buffer_len: u32 = rtloutbufz as u32 * self.rtl_mult as u32 * 2;
         let mut vb: [Complex<f32>; 320] = [Complex::new(0.0, 0.0); 320];
-        let mut buffer = vec![0u8; buffer_len as usize];
+        let mut buffer = vec![0u8; buffer_len as usize * 4];
+        let mut temp_buffer = vec![0u8; buffer_len as usize];
 
         match self.ctl {
             None => {
@@ -324,6 +325,13 @@ impl RtlSdr {
             }
 
             Some(mut reader) => loop {
+                // read the buffer four times, starting at i * buffer read size
+                for i in 0..4 {
+                    let read = reader.read(&mut temp_buffer).await.unwrap();
+                    buffer[i * buffer_len as usize..(i + 1) * buffer_len as usize]
+                        .copy_from_slice(&temp_buffer[..read]);
+                }
+
                 let read = reader.read(&mut buffer).await.unwrap();
 
                 let mut bytes_iterator = buffer.iter().take(read);
