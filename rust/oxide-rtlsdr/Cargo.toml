@@ -20,6 +20,6 @@ ctrlc = "3.4.4"
 num = "0.4.1"
 custom_error = "1.9.2"
 oxide-decoders = { path = "../oxide-decoders" }
-tokio = { version = "1.36.0", features = ["full", "tracing"] }
+tokio = { version = "1.37.0", features = ["full", "tracing"] }
 array-init = "2.1.0"
 # num-complex = "0.4.3"

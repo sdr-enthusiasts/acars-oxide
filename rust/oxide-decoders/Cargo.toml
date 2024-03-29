@@ -15,6 +15,6 @@ rust-version.workspace = true
 log = "0.4.21"
 custom_error = "1.9.2"
 num = "0.4.1"
-tokio = { version = "1.36.0", features = ["full", "tracing"] }
+tokio = { version = "1.37.0", features = ["full", "tracing"] }
 oxide-helpers = { path = "../oxide-helpers" }
 # num-complex = "0.4.3"
