@@ -17,7 +17,7 @@ libc = "0.2.154"
 rtlsdr_mt = "2.2.0"
 rtlsdr_sys = "1.1.2"
 ctrlc = "3.4.4"
-num = "0.4.2"
+num = "0.4.3"
 custom_error = "1.9.2"
 oxide-decoders = { path = "../oxide-decoders" }
 tokio = { version = "1.37.0", features = ["full", "tracing"] }
