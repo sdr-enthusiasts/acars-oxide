@@ -12,6 +12,6 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-tokio = { version = "1.37.0", features = ["full", "tracing"] }
+tokio = { version = "1.38.0", features = ["full", "tracing"] }
 log = "0.4.21"
 oxide-decoders = { path = "../oxide-decoders" }
