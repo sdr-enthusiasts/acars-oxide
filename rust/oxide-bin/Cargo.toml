@@ -18,5 +18,5 @@ oxide-config = { path = "../oxide-config" }
 oxide-scanner = { path = "../oxide-scanner" }
 oxide-decoders = { path = "../oxide-decoders" }
 sdre-rust-logging = "0.3.4"
-tokio = { version = "1.41.0", features = ["full", "tracing"] }
+tokio = { version = "1.41.1", features = ["full", "tracing"] }
 array-init = "2.1.0"
