@@ -12,7 +12,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-log = "0.4.22"
+log = "0.4.24"
 oxide-rtlsdr = { path = "../oxide-rtlsdr" }
 oxide-config = { path = "../oxide-config" }
 oxide-scanner = { path = "../oxide-scanner" }
