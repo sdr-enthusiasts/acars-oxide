@@ -12,11 +12,11 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-log = "0.4.22"
+log = "0.4.25"
 oxide-rtlsdr = { path = "../oxide-rtlsdr" }
 oxide-config = { path = "../oxide-config" }
 oxide-scanner = { path = "../oxide-scanner" }
 oxide-decoders = { path = "../oxide-decoders" }
-sdre-rust-logging = "0.3.8"
-tokio = { version = "1.42.0", features = ["full", "tracing"] }
+sdre-rust-logging = "0.3.9"
+tokio = { version = "1.43.0", features = ["full", "tracing"] }
 array-init = "2.1.0"

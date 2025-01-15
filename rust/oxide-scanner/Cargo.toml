@@ -15,5 +15,5 @@ rust-version.workspace = true
 oxide-rtlsdr = { path = "../oxide-rtlsdr" }
 oxide-decoders = { path = "../oxide-decoders" }
 oxide-output = { path = "../oxide-output" }
-log = "0.4.22"
-tokio = { version = "1.42.0", features = ["full", "tracing"] }
+log = "0.4.25"
+tokio = { version = "1.43.0", features = ["full", "tracing"] }
