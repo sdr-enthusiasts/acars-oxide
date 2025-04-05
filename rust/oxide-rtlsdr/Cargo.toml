@@ -16,7 +16,7 @@ log = "0.4.27"
 libc = "0.2.171"
 rtlsdr_mt = "2.2.0"
 rtlsdr_sys = "1.1.2"
-ctrlc = "3.4.5"
+ctrlc = "3.4.6"
 num = "0.4.3"
 custom_error = "1.9.2"
 oxide-decoders = { path = "../oxide-decoders" }
