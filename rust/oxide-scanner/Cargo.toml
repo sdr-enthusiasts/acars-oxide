@@ -16,4 +16,4 @@ oxide-rtlsdr = { path = "../oxide-rtlsdr" }
 oxide-decoders = { path = "../oxide-decoders" }
 oxide-output = { path = "../oxide-output" }
 log = "0.4.27"
-tokio = { version = "1.44.1", features = ["full", "tracing"] }
+tokio = { version = "1.44.2", features = ["full", "tracing"] }
