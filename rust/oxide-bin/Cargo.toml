@@ -17,6 +17,6 @@ oxide-rtlsdr = { path = "../oxide-rtlsdr" }
 oxide-config = { path = "../oxide-config" }
 oxide-scanner = { path = "../oxide-scanner" }
 oxide-decoders = { path = "../oxide-decoders" }
-sdre-rust-logging = "0.3.16"
+sdre-rust-logging = "0.3.17"
 tokio = { version = "1.44.2", features = ["full", "tracing"] }
 array-init = "2.1.0"
