@@ -182,3 +182,4 @@ test_data/*.patched
 flamegraph.svg
 *.stacks
 cargo-flamegraph.stacks
+.direnv
