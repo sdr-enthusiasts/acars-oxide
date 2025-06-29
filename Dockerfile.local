@@ -8,7 +8,7 @@ COPY . .
 
 RUN cargo build --release
 
-FROM ghcr.io/sdr-enthusiasts/docker-baseimage:rtlsdr
+FROM ghcr.io/sdr-enthusiasts/docker-baseimage:base
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 COPY rootfs /
