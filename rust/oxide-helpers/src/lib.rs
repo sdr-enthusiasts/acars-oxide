@@ -14,7 +14,20 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
+#![deny(
+    clippy::pedantic,
+    //clippy::cargo,
+    clippy::nursery,
+    clippy::style,
+    clippy::correctness,
+    clippy::all,
+    clippy::unwrap_used,
+    clippy::expect_used
+)]
+// #![warn(missing_docs)]
+
 /// Round a float to a given number of decimal places
+#[must_use]
 pub fn round(x: f32, decimals: u32) -> f32 {
     let y = 10i32.pow(decimals) as f32;
     (x * y).round() / y

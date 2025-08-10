@@ -14,6 +14,18 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
+#![deny(
+    clippy::pedantic,
+    //clippy::cargo,
+    clippy::nursery,
+    clippy::style,
+    clippy::correctness,
+    clippy::all,
+    clippy::unwrap_used,
+    clippy::expect_used
+)]
+// #![warn(missing_docs)]
+
 use oxide_decoders::decoders::acars::AssembledACARSMessage;
 use tokio::sync::mpsc::UnboundedReceiver;
 #[macro_use]

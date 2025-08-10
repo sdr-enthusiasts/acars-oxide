@@ -14,6 +14,18 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
+#![deny(
+    clippy::pedantic,
+    //clippy::cargo,
+    clippy::nursery,
+    clippy::style,
+    clippy::correctness,
+    clippy::all,
+    clippy::unwrap_used,
+    clippy::expect_used
+)]
+// #![warn(missing_docs)]
+
 pub extern crate clap as clap;
 extern crate custom_error;
 
@@ -45,8 +57,8 @@ pub struct OxideInput {
     /// SDR specific options.
     /// For each option, the format for the command line flag is: --sdrYoptionname where Y is an integer between 1 and 8.
     /// For example, --sdr1gain 20 --sdr2gain 20
-    /// The options are: gain, ppm, biastee, mult, freq, decoding_type, and serial.
-    /// Please note that using the device index, as reported by rtl_test or other tools, is not supported. The serial number must be used.
+    /// The options are: gain, ppm, biastee, mult, freq, `decoding_type`, and serial.
+    /// Please note that using the device index, as reported by `rtl_test` or other tools, is not supported. The serial number must be used.
     /// Of special note, `decoding_type` indicates if the message is decoded using the VDLM2 protocol or the ACARS protocol. `acars` and `vdlm2` are valid options.
     #[clap(
         long,
@@ -599,12 +611,12 @@ custom_error! { OxideInputError
 
 fn validate_freq(freqs_string: &str) -> Result<f32, OxideInputError> {
     let freq = freqs_string.parse::<f32>()?;
-    if !(108.0..=137.0).contains(&freq) {
+    if (108.0..=137.0).contains(&freq) {
+        Ok(freq)
+    } else {
         Err(OxideInputError::FrequencyOutsideOfAirband {
             freq: freq.to_string(),
         })
-    } else {
-        Ok(freq)
     }
 }
 
