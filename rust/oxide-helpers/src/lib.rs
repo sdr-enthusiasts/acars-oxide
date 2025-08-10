@@ -15,7 +15,6 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 /// Round a float to a given number of decimal places
-
 pub fn round(x: f32, decimals: u32) -> f32 {
     let y = 10i32.pow(decimals) as f32;
     (x * y).round() / y

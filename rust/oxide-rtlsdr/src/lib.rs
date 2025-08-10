@@ -441,7 +441,6 @@ impl Display for DeviceAttributes {
 ///
 /// The iterator yields a DeviceAttributes in index order, so the device with the first yielded
 /// name can be opened at index 0, and so on.
-
 pub fn devices() -> impl Iterator<Item = DeviceAttributes> {
     let count = unsafe { rtlsdr_sys::rtlsdr_get_device_count() };
 
