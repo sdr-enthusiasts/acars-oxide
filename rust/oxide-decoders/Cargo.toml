@@ -12,9 +12,9 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-log = "0.4.27"
-custom_error = "1.9.2"
-num = "0.4.3"
-tokio = { version = "1.47.1", features = ["full", "tracing"] }
+log.workspace = true
+custom_error.workspace = true
+num.workspace = true
+tokio.workspace = true
 oxide-helpers = { path = "../oxide-helpers" }
 # num-complex = "0.4.3"

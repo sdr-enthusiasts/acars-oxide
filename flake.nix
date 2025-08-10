@@ -15,15 +15,13 @@
             inherit system overlays;
           };
           libPath = with pkgs; lib.makeLibraryPath [
-            libGL
-            libxkbcommon
-            wayland
+            rtl-sdr-librtlsdr
           ];
           rustToolchain = pkgs.rust-bin.stable.latest.default;
           # new! 👇
           nativeBuildInputs = with pkgs; [ rustToolchain ];
           # also new! 👇
-          buildInputs = with pkgs; [ cargo-make cargo-deny cargo-machete cargo-profiler samply cargo-tauri typos ];
+          buildInputs = with pkgs; [ pkgconf rtl-sdr-librtlsdr ];
           RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
           LD_LIBRARY_PATH = libPath;
         in
