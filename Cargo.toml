@@ -35,7 +35,7 @@ num = "0.4.3"
 libc = "0.2.175"
 rtlsdr_mt = "2.2.0"
 rtlsdr_sys = "1.1.2"
-ctrlc = "3.5.0"
+ctrlc = "3.5.1"
 
 # [profile.release]
 # debug = true
