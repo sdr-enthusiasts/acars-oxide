@@ -32,7 +32,7 @@ clap = { version = "4.5.53", features = ["derive", "env"] }
 custom_error = "1.9.2"
 log = "0.4.28"
 num = "0.4.3"
-libc = "0.2.177"
+libc = "0.2.178"
 rtlsdr_mt = "2.2.0"
 rtlsdr_sys = "1.1.2"
 ctrlc = "3.5.1"
